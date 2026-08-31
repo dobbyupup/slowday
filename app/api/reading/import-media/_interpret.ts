@@ -100,13 +100,20 @@ async function callOpenAIChatCompletions(apiKey: string, model: string, dataUrls
 }
 
 async function callCompatible(apiKey: string, model: string, baseUrl: string, dataUrls: string[], message: string, compatibilityMode = false, systemPrompt = baseSystemPrompt) {
+  const isDeepSeek = new URL(baseUrl).hostname === "api.deepseek.com";
   const response = await fetch(customEndpoint(baseUrl, "chat/completions"), {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    // DeepSeek's experimental vision model accepts multimodal Chat Completions,
-    // but does not consistently accept JSON mode. The prompt still requires JSON
-    // and parseInterpretations also tolerates a fenced JSON response.
-    body: JSON.stringify({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: [{ type: "text", text: `用户的解读要求（只决定分析角度，不可照抄）：${message || "无特别要求"}` }, ...dataUrls.map(url => ({ type: "image_url", image_url: compatibilityMode ? { url } : { url, detail: "high" } }))] }], max_tokens: 2200, stream: false }),
+    // DeepSeek vision supports JSON mode. Enforcing it prevents a successful
+    // vision response from being discarded merely because it was prose instead
+    // of the structured object the knowledge-base importer requires.
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "system", content: systemPrompt }, { role: "user", content: [{ type: "text", text: `用户的解读要求（只决定分析角度，不可照抄）：${message || "无特别要求"}` }, ...dataUrls.map(url => ({ type: "image_url", image_url: compatibilityMode ? { url } : { url, detail: "high" } }))] }],
+      max_tokens: 3200,
+      stream: false,
+      ...(isDeepSeek ? { thinking: { type: "disabled" }, response_format: { type: "json_object" } } : {}),
+    }),
     // Cloudflare Workers does not implement redirect: "error". "manual" keeps
     // redirects blocked while allowing the request to run at the edge.
     redirect: "manual",
