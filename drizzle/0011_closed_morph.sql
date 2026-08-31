@@ -1,0 +1,1 @@
+ALTER TABLE `reading_items` ADD `tags` text DEFAULT '' NOT NULL;

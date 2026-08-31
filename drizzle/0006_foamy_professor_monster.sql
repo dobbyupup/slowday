@@ -1,0 +1,1 @@
+ALTER TABLE `reading_items` ADD `image_url` text DEFAULT '' NOT NULL;
