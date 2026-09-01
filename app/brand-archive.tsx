@@ -88,13 +88,6 @@ export function BrandArchivePage({ profile, history, knowledgeStats, readings, e
       <div className="archive-actions"><button onClick={() => setHistoryOpen(value => !value)}>历史迭代记录 {history.length}</button><button className="archive-edit-button" onClick={() => openBranch(archiveBranches.find(([key]) => !profile[key])?.[0] || "story")} aria-label="编辑自定义卡片" title="编辑自定义卡片">✎</button></div>
     </header>
 
-    <section className="archive-evolution-status">
-      <span><b>{knowledgeStats.total}</b> 条品牌知识</span>
-      <span><b>v{profile.version || 0}</b> 当前档案</span>
-      <span className={knowledgeStats.newSinceVersion ? "has-new" : ""}><b>{knowledgeStats.newSinceVersion}</b> 条新资料待吸收</span>
-      <button onClick={() => void onEvolve()} disabled={evolving || !profile.version || !knowledgeStats.total}>{evolving ? "AI 正在梳理新信号…" : "✦ 根据知识库迭代"}</button>
-    </section>
-
     <section className="archive-branch-directory" aria-label="品牌档案分支">
       <header><div><small>BRAND BRANCHES</small><h2>档案分支</h2></div><p>{archiveBranches.filter(([key]) => profile[key].trim()).length} / {archiveBranches.length} 已完善</p></header>
       <div>{archiveBranches.map(([key, label, , placeholder]) => { const customLabel = profile.branchLabels?.[key] || label; return <button type="button" className={profile[key].trim() ? "complete" : "empty"} key={key} onClick={() => openBranch(key)} aria-label={`编辑${customLabel}`}>

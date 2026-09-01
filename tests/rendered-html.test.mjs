@@ -75,7 +75,9 @@ test("brand archive is a separate versioned page that evolves from owner-scoped 
 
   assert.match(page, /view === "archive"/);
   assert.match(page, />品牌档案</);
-  assert.match(archive, /根据知识库迭代/);
+  assert.doesNotMatch(archive, /archive-evolution-status/);
+  assert.doesNotMatch(archive, /条新资料待吸收/);
+  assert.doesNotMatch(archive, /根据知识库迭代/);
   assert.match(archive, /历史迭代记录/);
   assert.match(archive, /className="archive-edit-button"/);
   assert.match(archive, /aria-label="编辑自定义卡片"/);
