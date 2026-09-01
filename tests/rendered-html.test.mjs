@@ -260,9 +260,12 @@ test("reading timeline imports links, summarizes the archive, and keeps private 
   assert.match(panels, /home-inspiration-day/);
   assert.match(panels, /second\.localeCompare\(first\)/);
   assert.match(panels, /AI INSPIRATION REVIEW/);
-  assert.match(panels, /全部大类/);
+  assert.doesNotMatch(panels, /全部大类/);
+  assert.doesNotMatch(panels, /按灵感大类筛选/);
+  assert.match(panels, /<option value="">全部分类<\/option>/);
+  assert.match(panels, /aria-label=\{`编辑资料：\$\{item\.title\}`\} onClick=\{\(\) => onEdit\(item\)\}/);
   for (const category of ["产品", "品牌视觉", "模特展示", "材质工艺", "包装空间", "内容叙事", "品牌策略"]) assert.match(panels, new RegExp(category));
-  assert.match(panels, /readingBroadCategories\(item\)\.includes\(tagFilter\)/);
+  assert.doesNotMatch(panels, /readingBroadCategories\(item\)\.includes\(tagFilter\)/);
   assert.doesNotMatch(panels, /＋ 记一条阅读/);
   assert.doesNotMatch(page, /className="api-entry"/);
   assert.match(page, /className="brand-ai"/);
@@ -343,7 +346,8 @@ test("reading timeline imports links, summarizes the archive, and keeps private 
   assert.match(panels, /搜索标题、品牌或中文解读/);
   assert.match(panels, /statusFilter === "followup"/);
   assert.match(panels, /layout === "timeline"/);
-  assert.match(panels, /inspiration-detail-drawer/);
+  assert.doesNotMatch(panels, /inspiration-detail-drawer/);
+  assert.match(panels, /onClick=\{\(\) => onEdit\(item\)\}/);
   assert.match(panels, /inspirationImageFocus/);
   assert.match(panels, /手链\|手镯\|腕饰\|手腕/);
   assert.match(css, /\.inspiration-library-grid\{/);

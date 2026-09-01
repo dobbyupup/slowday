@@ -185,36 +185,29 @@ type ReadingProps = {
 
 export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, onAdd, onEdit, onDelete, onReanalyze, milestones, onConvert, onLoadCanvas, onSaveCanvas, onConfirm, onImportMedia }: ReadingProps) {
   const [query, setQuery] = useState("");
-  const [tagFilter, setTagFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "followup" | "untracked">("all");
   const [workflowFilter, setWorkflowFilter] = useState<"all" | "pending" | "confirmed">("all");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [layout, setLayout] = useState<"grid" | "timeline">("grid");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [canvasTag, setCanvasTag] = useState("");
   const trackedIds = new Set(milestones.map(milestone => milestone.sourceReadingId).filter((id): id is number => Boolean(id)));
-  const availableBroadCategories = broadTagGroups.map(group => group.label).filter(label => items.some(item => readingBroadCategories(item).includes(label)));
-  if (items.some(item => readingBroadCategories(item).includes("其他"))) availableBroadCategories.push("其他");
   const normalizedQuery = query.trim().toLocaleLowerCase("zh-CN");
   const filteredItems = items.filter(item => {
     const matchesQuery = !normalizedQuery || [item.title, item.source, item.note, item.tags].some(value => value.toLocaleLowerCase("zh-CN").includes(normalizedQuery));
-    const matchesTag = !tagFilter || readingBroadCategories(item).includes(tagFilter);
     const tracked = trackedIds.has(item.id);
     const matchesStatus = statusFilter === "all" || (statusFilter === "followup" ? tracked : !tracked);
     const matchesWorkflow = workflowFilter === "all" || item.workflowStatus === workflowFilter;
     const matchesCategory = !categoryFilter || item.primaryCategory === categoryFilter;
-    return matchesQuery && matchesTag && matchesStatus && matchesWorkflow && matchesCategory;
+    return matchesQuery && matchesStatus && matchesWorkflow && matchesCategory;
   });
   const groups = filteredItems.reduce<Record<string, ReadingItem[]>>((result, item) => {
     (result[item.date] ??= []).push(item);
     return result;
   }, {});
-  const selectedItem = selectedId ? items.find(item => item.id === selectedId) ?? null : null;
-  function openDetails(item: ReadingItem) { setSelectedId(item.id); }
   function handleCardKey(event: ReactKeyboardEvent<HTMLElement>, item: ReadingItem) {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
-    openDetails(item);
+    onEdit(item);
   }
   return <section className="reading-panel collection-panel">
     <header className="collection-hero">
@@ -224,7 +217,6 @@ export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, o
     {items.some(item => item.workflowStatus === "pending") && <section className="knowledge-inbox"><div><small>INBOX · 待整理</small><h2>系统已经整理，等待你的确认</h2><p>已自动识别资料类型、来源、主分类、细分标签、潜在用途与重复内容。</p></div><button onClick={() => void Promise.all(items.filter(item => item.workflowStatus === "pending").map(onConfirm))}>批量确认 {items.filter(item => item.workflowStatus === "pending").length} 条</button></section>}
     <div className="inspiration-toolbar">
       <label className="inspiration-search"><span aria-hidden="true">⌕</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索标题、品牌或中文解读" aria-label="搜索品牌灵感" /></label>
-      <select value={tagFilter} onChange={event => setTagFilter(event.target.value)} aria-label="按灵感大类筛选"><option value="">全部大类</option>{availableBroadCategories.map(category => <option key={category} value={category}>{category}</option>)}</select>
       <select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)} aria-label="按品牌主分类筛选"><option value="">全部分类</option>{["品牌定位", "视觉系统", "产品设计", "材质工艺", "包装", "摄影", "内容文案", "用户洞察"].map(category => <option key={category}>{category}</option>)}</select>
       <div className="inspiration-status-filter" aria-label="按整理状态筛选"><button className={workflowFilter === "all" ? "active" : ""} onClick={() => setWorkflowFilter("all")}>全部资料</button><button className={workflowFilter === "pending" ? "active" : ""} onClick={() => setWorkflowFilter("pending")}>待整理</button><button className={workflowFilter === "confirmed" ? "active" : ""} onClick={() => setWorkflowFilter("confirmed")}>已归档</button></div>
       <div className="inspiration-status-filter" aria-label="按跟进状态筛选"><button className={statusFilter === "all" ? "active" : ""} onClick={() => setStatusFilter("all")}>全部</button><button className={statusFilter === "untracked" ? "active" : ""} onClick={() => setStatusFilter("untracked")}>未跟进</button><button className={statusFilter === "followup" ? "active" : ""} onClick={() => setStatusFilter("followup")}>已跟进</button></div>
@@ -238,7 +230,7 @@ export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, o
       const tags = readingTags(item.tags);
       const tracked = trackedIds.has(item.id);
       const focus = inspirationImageFocus(item);
-      return <article className="inspiration-library-card" key={item.id} tabIndex={0} role="button" onClick={() => openDetails(item)} onKeyDown={event => handleCardKey(event, item)}>
+      return <article className="inspiration-library-card" key={item.id} tabIndex={0} role="button" aria-label={`编辑资料：${item.title}`} onClick={() => onEdit(item)} onKeyDown={event => handleCardKey(event, item)}>
         <div className={`inspiration-card-image ${focus.className}`}>{item.imageUrl ? <img src={item.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={event => { event.currentTarget.style.display = "none"; }} /> : <span>BRAND<br />REFERENCE</span>}{focus.label && <strong>{focus.label}</strong>}<i className={item.workflowStatus === "pending" ? "pending" : tracked ? "tracked" : ""}>{item.workflowStatus === "pending" ? "待整理" : tracked ? "已跟进" : "已归档"}</i></div>
         <div className="inspiration-card-copy"><small>{item.source || "未标注来源"}<time dateTime={item.date}>{item.date.replaceAll("-", ".")}</time></small><div className="knowledge-classification"><b>{item.primaryCategory}</b><span>{item.resourceType}</span><span>用于：{item.intendedUse}</span>{item.duplicateOf && <em>与 #{item.duplicateOf} 重复</em>}</div><h2>{item.title}</h2><p>{item.note || "这条资料还没有中文解读。"}</p>{tags.length > 0 && <div className="reading-tags">{tags.slice(0, 4).map(tag => <button key={tag} title={`打开“${tag}”灵感画布`} onClick={event => { event.stopPropagation(); setCanvasTag(tag); }}>{tag}</button>)}</div>}{item.workflowStatus === "pending" && <button className="knowledge-confirm" onClick={event => { event.stopPropagation(); void onConfirm(item); }}>确认归档</button>}</div>
       </article>;
@@ -246,20 +238,13 @@ export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, o
     {filteredItems.length && layout === "timeline" ? <div className="reading-stream">{Object.entries(groups).sort(([first], [second]) => second.localeCompare(first)).map(([date, dayItems]) => <section className="reading-day" key={date}>
       <time dateTime={date}><b>{Number(date.slice(8))}</b><span>{monthName(date)}<small>{weekdayName(date)}</small></span></time>
       <div className="reading-rail" aria-hidden="true"><i /></div>
-      <div className="reading-day-list">{dayItems.map((item, index) => { const href = safeReadingLink(item.url); return <article className={`reading-card ${item.imageUrl ? "with-image" : ""} ${href ? "has-link" : ""}`} key={item.id} role="button" tabIndex={0} aria-label={`查看灵感：${item.title}`} onClick={event => { if ((event.target as HTMLElement).closest("button,a")) return; openDetails(item); }} onKeyDown={event => handleCardKey(event, item)}>
+      <div className="reading-day-list">{dayItems.map((item, index) => { const href = safeReadingLink(item.url); return <article className={`reading-card ${item.imageUrl ? "with-image" : ""} ${href ? "has-link" : ""}`} key={item.id} role="button" tabIndex={0} aria-label={`编辑资料：${item.title}`} onClick={event => { if ((event.target as HTMLElement).closest("button,a")) return; onEdit(item); }} onKeyDown={event => handleCardKey(event, item)}>
         <span className="collection-index">{String(index + 1).padStart(2, "0")}</span>
         {item.imageUrl && <img src={item.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={event => { event.currentTarget.style.display = "none"; }} />}
         <div className="reading-card-body"><small>{item.source || "未标注来源"}</small><h2>{item.title}</h2><p>{item.note || "这条阅读还没有写下旁注。"}</p>{readingTags(item.tags).length > 0 && <div className="reading-tags">{readingTags(item.tags).map(tag => <span key={tag}>{tag}</span>)}</div>}<footer>{href && <a href={href} target="_blank" rel="noreferrer">查看原文 ↗</a>}<span><button className="promote" disabled={milestones.some(milestone => milestone.sourceReadingId === item.id)} onClick={() => void onConvert(item)}>{milestones.some(milestone => milestone.sourceReadingId === item.id) ? "已收录跟进" : "收录跟进"}</button>{item.imageUrl && !href && <button onClick={() => void onReanalyze(item)}>重新识别</button>}<button onClick={() => onEdit(item)}>编辑</button><button onClick={() => onDelete(item)}>删除</button></span></footer></div>
       </article>; })}</div>
     </section>)}</div> : null}
     {!items.length ? <EmptyCollection title="品牌知识库还是空的" copy="图片、网页、文档或一句想法，都可以先放心丢进来。" action="存入第一条" onAction={onAdd} /> : !filteredItems.length ? <EmptyCollection title="没有符合条件的资料" copy="换一个关键词、分类、标签或状态再看看。" /> : null}
-    {selectedItem && <div className="inspiration-detail-backdrop" onMouseDown={() => setSelectedId(null)}><aside className="inspiration-detail-drawer" role="dialog" aria-modal="true" aria-label={`灵感详情：${selectedItem.title}`} onMouseDown={event => event.stopPropagation()}>
-      <button className="inspiration-detail-close" onClick={() => setSelectedId(null)} aria-label="关闭灵感详情">×</button>
-      {selectedItem.imageUrl && <img className="inspiration-detail-image" src={selectedItem.imageUrl} alt="" referrerPolicy="no-referrer" />}
-      <div className="inspiration-detail-content"><small>{selectedItem.source || "未标注来源"}<time dateTime={selectedItem.date}>{selectedItem.date.replaceAll("-", ".")}</time></small><h2>{selectedItem.title}</h2><p>{selectedItem.note || "这条灵感还没有写下中文解读。"}</p>{readingTags(selectedItem.tags).length > 0 && <section><b>值得借鉴什么</b><div className="reading-tags">{readingTags(selectedItem.tags).map(tag => <button key={tag} title={`打开“${tag}”灵感画布`} onClick={() => { setSelectedId(null); setCanvasTag(tag); }}>{tag}</button>)}</div></section>}
-        <footer>{safeReadingLink(selectedItem.url) && <a href={safeReadingLink(selectedItem.url)} target="_blank" rel="noreferrer">查看原文 ↗</a>}<div><button onClick={() => { setSelectedId(null); onEdit(selectedItem); }}>编辑</button><button className="promote" disabled={trackedIds.has(selectedItem.id)} onClick={() => void onConvert(selectedItem)}>{trackedIds.has(selectedItem.id) ? "已收录跟进" : "收录跟进"}</button><button onClick={() => { setSelectedId(null); onDelete(selectedItem); }}>删除</button></div></footer>
-      </div>
-    </aside></div>}
     {canvasTag && <InspirationCanvas tag={canvasTag} items={items} onClose={() => setCanvasTag("")} onLoad={onLoadCanvas} onSave={onSaveCanvas} onImportMedia={onImportMedia} />}
   </section>;
 }
