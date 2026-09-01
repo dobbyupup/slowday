@@ -363,7 +363,7 @@ test("reading timeline imports links, summarizes the archive, and keeps private 
   assert.match(panels, /搜索标题、品牌或中文解读/);
   assert.match(css, /grid-template-columns:minmax\(260px,1fr\) 150px max-content max-content max-content/);
   assert.match(css, /gap:8px;border:0;border-radius:0/);
-  assert.match(panels, /inspiration-tab-placeholder/);
+  assert.doesNotMatch(panels, /inspiration-tab-placeholder/);
   assert.match(panels, /statusFilter === "followup"/);
   assert.match(panels, /layout === "timeline"/);
   assert.match(panels, /inspiration-detail-drawer/);
