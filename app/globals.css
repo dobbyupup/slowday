@@ -321,6 +321,8 @@ body.canvas-open{overflow:hidden}.inspiration-canvas{position:fixed;z-index:40;i
 .canvas-node.selected{outline:3px solid #bd633c;outline-offset:4px;box-shadow:8px 9px 0 rgba(71,48,34,.2)}
 .canvas-node-image{height:calc(100% - 68px)}
 .canvas-link-handle{top:calc(50% - 11px)}
+.canvas-link-handle.left{left:-11px;right:auto}
+.canvas-link-handle.right{left:auto;right:-11px}
 .canvas-resize-handle{position:absolute;z-index:4;right:-8px;bottom:-8px;width:22px;height:22px;border:2px solid #fff4e2;border-radius:6px;background:#bd633c;box-shadow:0 0 0 1px #6d4432;cursor:nwse-resize;opacity:0;pointer-events:none}
 .canvas-resize-handle:after{content:"";position:absolute;right:4px;bottom:4px;width:7px;height:7px;border-right:2px solid #fff7e9;border-bottom:2px solid #fff7e9}
 .canvas-node.selected .canvas-resize-handle{opacity:1;pointer-events:auto}

@@ -4,7 +4,7 @@ import { readingCanvases, readingItems } from "../../../../db/schema";
 import { apiError, ApiError, boundedText, readJson, requireApiUser } from "../../_shared";
 
 type CanvasNode = { readingItemId: number; x: number; y: number; width?: number; height?: number; groupId?: string };
-type CanvasEdge = { from: number; to: number };
+type CanvasEdge = { from: number; to: number; fromSide?: "left" | "right"; toSide?: "left" | "right" };
 type CanvasNote = { id: string; x: number; y: number; text: string };
 type CanvasGroup = { id: string; x: number; y: number; width: number; height: number; title: string };
 type CanvasLayout = { nodes: CanvasNode[]; edges: CanvasEdge[]; notes: CanvasNote[]; groups: CanvasGroup[]; excludedItemIds: number[] };
@@ -67,10 +67,11 @@ async function validateLayout(ownerId: string, rawNodes: unknown, rawEdges: unkn
     if (!Number.isInteger(first) || !Number.isInteger(second) || first === second || !ids.has(first) || !ids.has(second)) continue;
     const from = first;
     const to = second;
-    const key = `${from}:${to}`;
+    const fromSide = value.fromSide === "left" ? "left" : "right"; const toSide = value.toSide === "right" ? "right" : "left";
+    const key = `${from}:${fromSide}:${to}:${toSide}`;
     if (edgeKeys.has(key)) continue;
     edgeKeys.add(key);
-    edges.push({ from, to });
+    edges.push({ from, to, fromSide, toSide });
   }
   const notes: CanvasNote[] = [];
   const noteIds = new Set<string>();
