@@ -403,6 +403,7 @@ test("brand follow-ups persist and inspiration can become execution", async () =
   assert.doesNotMatch(panels, /转为里程碑/);
   assert.match(panels, /收录跟进/);
   assert.match(panels, /FollowUpPage/);
+  assert.match(panels, /b\.createdAt\.localeCompare\(a\.createdAt\) \|\| b\.id - a\.id/);
   assert.match(panels, /值得借鉴什么/);
   assert.match(page, /view === "followup"/);
   assert.match(page, /标签（值得借鉴什么）/);

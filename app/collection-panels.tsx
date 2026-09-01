@@ -438,7 +438,7 @@ export function FollowUpPage({ milestones, readings, onUpdate, onDelete, onEditR
   onEditReading: (item: ReadingItem) => void;
 }) {
   const readingById = new Map(readings.map(item => [item.id, item]));
-  const ordered = [...milestones].sort((a, b) => Number(a.status === "done") - Number(b.status === "done") || a.dueDate.localeCompare(b.dueDate));
+  const ordered = [...milestones].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id);
   const done = milestones.filter(item => item.status === "done").length;
   const average = milestones.length ? Math.round(milestones.reduce((total, item) => total + item.progress, 0) / milestones.length) : 0;
   return <section className="followup-panel collection-panel">
