@@ -361,7 +361,7 @@ test("reading timeline imports links, summarizes the archive, and keeps private 
   assert.doesNotMatch(panels, /readingItems\.slice\(0, 4\)/);
   assert.match(panels, /inspiration-library-grid/);
   assert.match(panels, /搜索标题、品牌或中文解读/);
-  assert.match(css, /grid-template-columns:minmax\(300px,1fr\) 160px minmax\(174px,max-content\) minmax\(146px,max-content\) max-content/);
+  assert.match(css, /max-width:1088px;grid-template-columns:minmax\(320px,1fr\) 150px minmax\(205px,max-content\) minmax\(185px,max-content\) minmax\(145px,max-content\)/);
   assert.match(panels, /statusFilter === "followup"/);
   assert.match(panels, /layout === "timeline"/);
   assert.match(panels, /inspiration-detail-drawer/);
