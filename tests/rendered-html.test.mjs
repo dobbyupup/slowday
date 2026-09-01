@@ -12,6 +12,8 @@ test("calendar exposes a selected-day todo list", async () => {
   assert.match(page, /Number\(a\.done\) - Number\(b\.done\)/);
   assert.match(page, /toggleTask\(task\.id\)/);
   assert.match(page, /monthTasks\.filter\(t => t\.date === key\)\.sort/);
+  assert.match(page, /className="day-number"><span>\{cell\.day\}<\/span>/);
+  assert.doesNotMatch(page, /cell\.day === 1 \? `\$\{cell\.date\.getMonth\(\) \+ 1\}月1日`/);
   assert.match(page, /task\.done \? "done" : ""/);
   assert.match(page, /onDoubleClick=\{event => handleCalendarTaskDoubleClick\(event, task\)\}/);
   assert.match(page, /单击修改，双击完成/);
