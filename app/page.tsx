@@ -184,7 +184,7 @@ export default function Home() {
   const [yearMonthGoalDrafts, setYearMonthGoalDrafts] = useState<Record<string, string>>({});
   const [yearMonthGoalNewItems, setYearMonthGoalNewItems] = useState<Record<string, string>>({});
   const [yearMonthGoalSaving, setYearMonthGoalSaving] = useState<string | null>(null);
-  const [reviewPeriod, setReviewPeriod] = useState<"week" | "month" | "year">("month");
+  const [reviewPeriod, setReviewPeriod] = useState<"week" | "month" | "year">("week");
   const [reviewComparison, setReviewComparison] = useState<ReviewComparison | null>(null);
   const [reviewComparisonLoading, setReviewComparisonLoading] = useState(false);
   const [apiModal, setApiModal] = useState(false);
@@ -610,6 +610,12 @@ export default function Home() {
     setView("overview");
   }
 
+  function openReviewHome() {
+    setReviewComparison(null);
+    setReviewPeriod("week");
+    setView("overview");
+  }
+
   function selectReviewPeriod(period: "week" | "month" | "year") {
     setReviewComparison(null);
     setReviewPeriod(period);
@@ -1003,7 +1009,7 @@ export default function Home() {
         <nav aria-label="主导航">
           <button className={view === "home" ? "active" : ""} onClick={() => setView("home")}>首页</button>
           <button className={view === "calendar" ? "active" : ""} onClick={() => setView("calendar")}>日历</button>
-          <button className={view === "review" || view === "overview" ? "active" : ""} onClick={() => setView("overview")}>复盘</button>
+          <button className={view === "review" || view === "overview" ? "active" : ""} onClick={openReviewHome}>复盘</button>
           <button className={view === "reading" ? "active" : ""} onClick={() => setView("reading")}>知识库</button>
           <button className={view === "archive" ? "active" : ""} onClick={() => setView("archive")}>品牌档案</button>
           <button className={view === "followup" ? "active" : ""} onClick={() => setView("followup")}>跟进</button>
@@ -1139,7 +1145,7 @@ export default function Home() {
         )}
       </section>
 
-      <nav className="mobile-nav" aria-label="移动端主导航"><button className={view === "home" ? "active" : ""} onClick={() => setView("home")}>首页</button><button className={view === "calendar" ? "active" : ""} onClick={() => setView("calendar")}>日历</button><button className={view === "review" || view === "overview" ? "active" : ""} onClick={() => setView("overview")}>复盘</button><button className={view === "reading" ? "active" : ""} onClick={() => setView("reading")}>知识库</button><button className={view === "archive" ? "active" : ""} onClick={() => setView("archive")}>档案</button><button className={view === "followup" ? "active" : ""} onClick={() => setView("followup")}>跟进</button></nav>
+      <nav className="mobile-nav" aria-label="移动端主导航"><button className={view === "home" ? "active" : ""} onClick={() => setView("home")}>首页</button><button className={view === "calendar" ? "active" : ""} onClick={() => setView("calendar")}>日历</button><button className={view === "review" || view === "overview" ? "active" : ""} onClick={openReviewHome}>复盘</button><button className={view === "reading" ? "active" : ""} onClick={() => setView("reading")}>知识库</button><button className={view === "archive" ? "active" : ""} onClick={() => setView("archive")}>档案</button><button className={view === "followup" ? "active" : ""} onClick={() => setView("followup")}>跟进</button></nav>
 
       {composer && <div className="modal-backdrop" onMouseDown={() => setComposer(false)}><section className="composer" role="dialog" aria-modal="true" aria-label="新建待办" onMouseDown={e => e.stopPropagation()}><button className="close" onClick={() => setComposer(false)}>×</button><small>NEW TODO</small><h2>为 {selectedMonth} 月 {selectedDay} 日添加待办</h2><label>待办内容<input autoFocus value={taskTitle} onChange={e => setTaskTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && void addTask()} placeholder="例如：把最难的事先干掉" /></label><button className="primary-btn wide composer-submit" onClick={() => void addTask()} disabled={syncState === "saving"}>{syncState === "saving" ? "正在保存…" : "塞进这一天"}</button></section></div>}
       {readingModal && <div className="modal-backdrop" onMouseDown={() => setReadingModal(false)}>

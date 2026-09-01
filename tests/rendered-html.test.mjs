@@ -141,6 +141,9 @@ test("ships simplified period reviews, persistent goals, AI comparisons, and ver
   assert.match(page, /周复盘/);
   assert.match(page, /月复盘/);
   assert.match(page, /年复盘/);
+  assert.match(page, /useState<"week" \| "month" \| "year">\("week"\)/);
+  assert.match(page, /function openReviewHome\(\)[\s\S]*setReviewPeriod\("week"\)[\s\S]*setView\("overview"\)/);
+  assert.equal((page.match(/onClick=\{openReviewHome\}>复盘<\/button>/g) ?? []).length, 2);
   assert.match(page, /年度总目标/);
   assert.match(page, /这一年的 12 个月目标/);
   assert.match(page, /saveYearMonthGoal/);
