@@ -37,13 +37,19 @@ export function readingValues(payload: ReadingPayload) {
     resourceType: allowed(payload.resourceType, ["图片", "网页链接", "文档", "文字想法", "用户反馈", "供应商资料"], "文字想法") as "图片" | "网页链接" | "文档" | "文字想法" | "用户反馈" | "供应商资料",
     primaryCategory: allowed(payload.primaryCategory, ["品牌定位", "视觉系统", "产品设计", "材质工艺", "包装", "摄影", "内容文案", "用户洞察"], "品牌定位"),
     workflowStatus: allowed(payload.workflowStatus, ["pending", "confirmed"], "pending") as "pending" | "confirmed",
-    intendedUse: allowed(payload.intendedUse, ["产品开发", "视觉设计", "包装设计", "拍摄计划", "内容选题", "品牌定位", "暂时研究"], "暂时研究"),
+    intendedUse: allowedMany(payload.intendedUse, ["产品开发", "视觉设计", "包装设计", "拍摄计划", "内容选题", "品牌定位", "暂时研究"], "暂时研究"),
     topic: boundedText(payload.topic, "专题", 120),
   };
 }
 
 function allowed(value: unknown, values: string[], fallback: string) {
   return typeof value === "string" && values.includes(value) ? value : fallback;
+}
+
+function allowedMany(value: unknown, values: string[], fallback: string) {
+  if (typeof value !== "string") return fallback;
+  const selected = Array.from(new Set(value.split(/[，,、;；\n]+/).map(item => item.trim()).filter(item => values.includes(item))));
+  return selected.length ? selected.join("，") : fallback;
 }
 
 function safeLink(value: unknown, field = "原文链接", max = 500) {

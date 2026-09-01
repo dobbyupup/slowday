@@ -189,6 +189,7 @@ export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, o
   const [workflowFilter, setWorkflowFilter] = useState<"all" | "pending" | "confirmed">("all");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [layout, setLayout] = useState<"grid" | "timeline">("grid");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [canvasTag, setCanvasTag] = useState("");
   const trackedIds = new Set(milestones.map(milestone => milestone.sourceReadingId).filter((id): id is number => Boolean(id)));
   const normalizedQuery = query.trim().toLocaleLowerCase("zh-CN");
@@ -204,6 +205,8 @@ export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, o
     (result[item.date] ??= []).push(item);
     return result;
   }, {});
+  const selectedItem = selectedId ? items.find(item => item.id === selectedId) ?? null : null;
+  function openDetails(item: ReadingItem) { setSelectedId(item.id); }
   function handleCardKey(event: ReactKeyboardEvent<HTMLElement>, item: ReadingItem) {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
@@ -230,9 +233,9 @@ export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, o
       const tags = readingTags(item.tags);
       const tracked = trackedIds.has(item.id);
       const focus = inspirationImageFocus(item);
-      return <article className="inspiration-library-card" key={item.id} tabIndex={0} role="button" aria-label={`编辑资料：${item.title}`} onClick={() => onEdit(item)} onKeyDown={event => handleCardKey(event, item)}>
-        <div className={`inspiration-card-image ${focus.className}`}>{item.imageUrl ? <img src={item.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={event => { event.currentTarget.style.display = "none"; }} /> : <span>BRAND<br />REFERENCE</span>}{focus.label && <strong>{focus.label}</strong>}<i className={item.workflowStatus === "pending" ? "pending" : tracked ? "tracked" : ""}>{item.workflowStatus === "pending" ? "待整理" : tracked ? "已跟进" : "已归档"}</i></div>
-        <div className="inspiration-card-copy"><small>{item.source || "未标注来源"}<time dateTime={item.date}>{item.date.replaceAll("-", ".")}</time></small><div className="knowledge-classification"><b>{item.primaryCategory}</b><span>{item.resourceType}</span><span>用于：{item.intendedUse}</span>{item.duplicateOf && <em>与 #{item.duplicateOf} 重复</em>}</div><h2>{item.title}</h2><p>{item.note || "这条资料还没有中文解读。"}</p>{tags.length > 0 && <div className="reading-tags">{tags.slice(0, 4).map(tag => <button key={tag} title={`打开“${tag}”灵感画布`} onClick={event => { event.stopPropagation(); setCanvasTag(tag); }}>{tag}</button>)}</div>}{item.workflowStatus === "pending" && <button className="knowledge-confirm" onClick={event => { event.stopPropagation(); void onConfirm(item); }}>确认归档</button>}</div>
+      return <article className="inspiration-library-card" key={item.id}>
+        <button type="button" className={`inspiration-card-image inspiration-card-preview ${focus.className}`} aria-label={`完整预览：${item.title}`} onClick={() => openDetails(item)}>{item.imageUrl ? <img src={item.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={event => { event.currentTarget.style.display = "none"; }} /> : <span>BRAND<br />REFERENCE</span>}{focus.label && <strong>{focus.label}</strong>}<i className={item.workflowStatus === "pending" ? "pending" : tracked ? "tracked" : ""}>{item.workflowStatus === "pending" ? "待整理" : tracked ? "已跟进" : "已归档"}</i></button>
+        <div className="inspiration-card-copy" tabIndex={0} role="button" aria-label={`编辑资料：${item.title}`} onClick={() => onEdit(item)} onKeyDown={event => handleCardKey(event, item)}><small>{item.source || "未标注来源"}<time dateTime={item.date}>{item.date.replaceAll("-", ".")}</time></small><div className="knowledge-classification"><b>{item.primaryCategory}</b><span>{item.resourceType}</span><span>用于：{item.intendedUse}</span>{item.duplicateOf && <em>与 #{item.duplicateOf} 重复</em>}</div><h2>{item.title}</h2><p>{item.note || "这条资料还没有中文解读。"}</p>{tags.length > 0 && <div className="reading-tags">{tags.slice(0, 4).map(tag => <button key={tag} title={`打开“${tag}”灵感画布`} onClick={event => { event.stopPropagation(); setCanvasTag(tag); }}>{tag}</button>)}</div>}{item.workflowStatus === "pending" && <button className="knowledge-confirm" onClick={event => { event.stopPropagation(); void onConfirm(item); }}>确认归档</button>}</div>
       </article>;
     })}</div> : null}
     {filteredItems.length && layout === "timeline" ? <div className="reading-stream">{Object.entries(groups).sort(([first], [second]) => second.localeCompare(first)).map(([date, dayItems]) => <section className="reading-day" key={date}>
@@ -245,6 +248,13 @@ export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, o
       </article>; })}</div>
     </section>)}</div> : null}
     {!items.length ? <EmptyCollection title="品牌知识库还是空的" copy="图片、网页、文档或一句想法，都可以先放心丢进来。" action="存入第一条" onAction={onAdd} /> : !filteredItems.length ? <EmptyCollection title="没有符合条件的资料" copy="换一个关键词、分类、标签或状态再看看。" /> : null}
+    {selectedItem && <div className="inspiration-detail-backdrop" onMouseDown={() => setSelectedId(null)}><aside className="inspiration-detail-drawer" role="dialog" aria-modal="true" aria-label={`资料完整预览：${selectedItem.title}`} onMouseDown={event => event.stopPropagation()}>
+      <button className="inspiration-detail-close" onClick={() => setSelectedId(null)} aria-label="关闭完整预览">×</button>
+      {selectedItem.imageUrl && <img className="inspiration-detail-image" src={selectedItem.imageUrl} alt="" referrerPolicy="no-referrer" />}
+      <div className="inspiration-detail-content"><small>{selectedItem.source || "未标注来源"}<time dateTime={selectedItem.date}>{selectedItem.date.replaceAll("-", ".")}</time></small><div className="knowledge-classification"><b>{selectedItem.primaryCategory}</b><span>{selectedItem.resourceType}</span><span>用于：{selectedItem.intendedUse}</span></div><h2>{selectedItem.title}</h2><p>{selectedItem.note || "这条资料还没有写下中文解读。"}</p>{readingTags(selectedItem.tags).length > 0 && <section><b>值得借鉴什么</b><div className="reading-tags">{readingTags(selectedItem.tags).map(tag => <button key={tag} title={`打开“${tag}”灵感画布`} onClick={() => { setSelectedId(null); setCanvasTag(tag); }}>{tag}</button>)}</div></section>}
+        <footer>{safeReadingLink(selectedItem.url) && <a href={safeReadingLink(selectedItem.url)} target="_blank" rel="noreferrer">查看原文 ↗</a>}<div><button onClick={() => { setSelectedId(null); onEdit(selectedItem); }}>编辑</button><button className="promote" disabled={trackedIds.has(selectedItem.id)} onClick={() => void onConvert(selectedItem)}>{trackedIds.has(selectedItem.id) ? "已收录跟进" : "收录跟进"}</button><button onClick={() => { setSelectedId(null); onDelete(selectedItem); }}>删除</button></div></footer>
+      </div>
+    </aside></div>}
     {canvasTag && <InspirationCanvas tag={canvasTag} items={items} onClose={() => setCanvasTag("")} onLoad={onLoadCanvas} onSave={onSaveCanvas} onImportMedia={onImportMedia} />}
   </section>;
 }

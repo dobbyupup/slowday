@@ -350,3 +350,12 @@ body.canvas-open{overflow:hidden}.inspiration-canvas{position:fixed;z-index:40;i
   .archive-branch-directory>div>button{grid-template-columns:35px minmax(0,1fr) auto;min-height:108px;padding:15px}
   .archive-version-materials{grid-template-columns:1fr}
 }
+
+.inspiration-card-preview{width:100%;border:0;padding:0;cursor:zoom-in}
+.inspiration-card-copy{cursor:text}
+.inspiration-card-copy:focus-visible{outline:2px solid #b8653d;outline-offset:-2px}
+.intended-use-picker{min-width:0;margin:0;padding:0;border:0}
+.intended-use-picker legend{margin-bottom:8px;font-weight:700}
+.intended-use-picker>div{display:flex;flex-wrap:wrap;gap:7px;padding:9px;border:1.5px solid #b6a38e;border-radius:7px;background:#f6efe3}
+.intended-use-picker button{border:1px solid #c49a7f;border-radius:999px;padding:7px 10px;background:#f8ead8;color:#79533f;font-size:10px;cursor:pointer}
+.intended-use-picker button.active{border-color:#593426;background:#b8653d;color:#fff8ed;box-shadow:2px 2px 0 rgba(68,41,29,.2)}

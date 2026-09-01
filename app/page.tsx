@@ -67,6 +67,11 @@ const moods = [
 const emptyReview: Review = { mood: "平静", energy: 4, text: "", keep: "", start: "", improve: "", stop: "", analysis: "", progressSummary: "" };
 const emptyBrandProgress: BrandProgress = { currentPhase: "品牌定位", annualDirection: "", monthlyFocus: "", blocker: "", nextAction: "", updatedAt: null };
 const emptyBrandProfile: BrandProfile = { story: "", philosophy: "", audience: "", keywords: "", differentiation: "", productDirection: "", visualLanguage: "", annualGoal: "", version: 0, updatedAt: null };
+const readingUseOptions = ["产品开发", "视觉设计", "包装设计", "拍摄计划", "内容选题", "品牌定位", "暂时研究"] as const;
+
+function readingUses(value: string) {
+  return value.split(/[，,、;；\n]+/).map(item => item.trim()).filter((item): item is typeof readingUseOptions[number] => readingUseOptions.includes(item as typeof readingUseOptions[number]));
+}
 
 const toDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const toMonthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -762,6 +767,12 @@ export default function Home() {
     setReadingDraft(current => ({ ...current, tags: splitReadingTags(current.tags).filter(item => item !== tag).join("，") }));
   }
 
+  function toggleReadingUse(value: typeof readingUseOptions[number]) {
+    const current = readingUses(readingDraft.intendedUse);
+    const next = current.includes(value) ? current.filter(item => item !== value) : [...current, value];
+    setReadingDraft(draft => ({ ...draft, intendedUse: (next.length ? next : ["暂时研究"]).join("，") }));
+  }
+
   async function saveReading() {
     try {
       setSyncState("saving");
@@ -944,7 +955,7 @@ export default function Home() {
   async function convertReadingToMilestone(item: ReadingItem) {
     try {
       setSyncState("saving");
-      const result = await api<{ milestone: BrandMilestone; duplicate: boolean }>("/api/milestones", { method: "POST", body: JSON.stringify({ title: item.title, phase: item.intendedUse || "暂时研究", dueDate: addDaysKey(todayKey, 14), deliverable: item.note, sourceReadingId: item.id }) });
+      const result = await api<{ milestone: BrandMilestone; duplicate: boolean }>("/api/milestones", { method: "POST", body: JSON.stringify({ title: item.title, phase: readingUses(item.intendedUse)[0] || "暂时研究", dueDate: addDaysKey(todayKey, 14), deliverable: item.note, sourceReadingId: item.id }) });
       setBrandMilestones(current => [result.milestone, ...current.filter(row => row.id !== result.milestone.id)]);
       setSyncState("saved");
       showCheer(result.duplicate ? "这条灵感已经收录到跟进。" : "灵感已收录到独立跟进页。", !result.duplicate);
@@ -1136,7 +1147,7 @@ export default function Home() {
           <button className="close" onClick={() => setReadingModal(false)}>×</button><small>BRAND INSPIRATION</small><h2>{readingEditingId ? "编辑这条灵感" : "留住这次灵感"}</h2>
           {!readingEditingId && <div className="compact-fields"><label>日期<input type="date" value={readingDraft.date} onChange={e => setReadingDraft({ ...readingDraft, date: e.target.value })} /></label><label>来源<input value={readingDraft.source} maxLength={100} onChange={e => setReadingDraft({ ...readingDraft, source: e.target.value })} placeholder="品牌、作者或网站" /></label></div>}
           <label>标题<input autoFocus value={readingDraft.title} maxLength={200} onChange={e => setReadingDraft({ ...readingDraft, title: e.target.value })} placeholder="什么品牌细节让你停了一下？" /></label>
-          <div className="compact-fields knowledge-edit-fields"><label>主分类<select value={readingDraft.primaryCategory} onChange={e => setReadingDraft({ ...readingDraft, primaryCategory: e.target.value })}>{["品牌定位", "视觉系统", "产品设计", "材质工艺", "包装", "摄影", "内容文案", "用户洞察"].map(value => <option key={value}>{value}</option>)}</select></label><label>可能用于<select value={readingDraft.intendedUse} onChange={e => setReadingDraft({ ...readingDraft, intendedUse: e.target.value })}>{["产品开发", "视觉设计", "包装设计", "拍摄计划", "内容选题", "品牌定位", "暂时研究"].map(value => <option key={value}>{value}</option>)}</select></label></div>
+          <div className="compact-fields knowledge-edit-fields"><label>主分类<select value={readingDraft.primaryCategory} onChange={e => setReadingDraft({ ...readingDraft, primaryCategory: e.target.value })}>{["品牌定位", "视觉系统", "产品设计", "材质工艺", "包装", "摄影", "内容文案", "用户洞察"].map(value => <option key={value}>{value}</option>)}</select></label><fieldset className="intended-use-picker"><legend>可能用于（可多选）</legend><div>{readingUseOptions.map(value => <button type="button" className={readingUses(readingDraft.intendedUse).includes(value) ? "active" : ""} aria-pressed={readingUses(readingDraft.intendedUse).includes(value)} key={value} onClick={() => toggleReadingUse(value)}>{value}</button>)}</div></fieldset></div>
           <label>专题 / 系列<input value={readingDraft.topic} maxLength={120} onChange={e => setReadingDraft({ ...readingDraft, topic: e.target.value })} placeholder="例如：黑金首饰系列、2027 春夏产品方向" /></label>
           <label className="tag-editor-label">标签（值得借鉴什么）<small>可以添加多个标签，按回车逐个保存</small><div className="tag-editor">{splitReadingTags(readingDraft.tags).map(tag => <button type="button" key={tag} onClick={() => removeReadingTag(tag)}>{tag}<span>×</span></button>)}<input value={readingTagInput} maxLength={80} onChange={e => setReadingTagInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" || e.key === "," || e.key === "，") { e.preventDefault(); addReadingTag(); } }} onBlur={() => addReadingTag()} placeholder={splitReadingTags(readingDraft.tags).length ? "继续添加…" : "例如：氛围感"} /></div></label>
           {!readingEditingId && <><label>原文链接<input type="url" value={readingDraft.url} maxLength={500} onChange={e => setReadingDraft({ ...readingDraft, url: e.target.value })} placeholder="https://…（可选）" /></label><label>封面图片链接<input type="url" value={readingDraft.imageUrl} maxLength={1000} onChange={e => setReadingDraft({ ...readingDraft, imageUrl: e.target.value })} placeholder="自动读取，也可以手动替换" /></label></>}

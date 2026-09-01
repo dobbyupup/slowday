@@ -265,7 +265,7 @@ test("reading timeline imports links, summarizes the archive, and keeps private 
   assert.doesNotMatch(panels, /全部大类/);
   assert.doesNotMatch(panels, /按灵感大类筛选/);
   assert.match(panels, /<option value="">全部分类<\/option>/);
-  assert.match(panels, /aria-label=\{`编辑资料：\$\{item\.title\}`\} onClick=\{\(\) => onEdit\(item\)\}/);
+  assert.match(panels, /className="inspiration-card-copy"[^>]+aria-label=\{`编辑资料：\$\{item\.title\}`\} onClick=\{\(\) => onEdit\(item\)\}/);
   for (const category of ["产品", "品牌视觉", "模特展示", "材质工艺", "包装空间", "内容叙事", "品牌策略"]) assert.match(panels, new RegExp(category));
   assert.doesNotMatch(panels, /readingBroadCategories\(item\)\.includes\(tagFilter\)/);
   assert.doesNotMatch(panels, /＋ 记一条阅读/);
@@ -348,7 +348,8 @@ test("reading timeline imports links, summarizes the archive, and keeps private 
   assert.match(panels, /搜索标题、品牌或中文解读/);
   assert.match(panels, /statusFilter === "followup"/);
   assert.match(panels, /layout === "timeline"/);
-  assert.doesNotMatch(panels, /inspiration-detail-drawer/);
+  assert.match(panels, /inspiration-detail-drawer/);
+  assert.match(panels, /inspiration-card-preview[^>]+完整预览/);
   assert.match(panels, /onClick=\{\(\) => onEdit\(item\)\}/);
   assert.match(panels, /inspirationImageFocus/);
   assert.match(panels, /手链\|手镯\|腕饰\|手腕/);
@@ -394,6 +395,11 @@ test("brand follow-ups persist and inspiration can become execution", async () =
   assert.match(page, /readingEditingId \? "保存修改"/);
   assert.match(page, /<label>标题<input autoFocus value=\{readingDraft\.title\}/);
   assert.match(page, /<label>中文解读<textarea value=\{readingDraft\.note\}/);
+  assert.match(page, /可能用于（可多选）/);
+  assert.match(page, /toggleReadingUse/);
+  assert.match(page, /aria-pressed=\{readingUses\(readingDraft\.intendedUse\)\.includes\(value\)\}/);
+  assert.match(readingApi, /allowedMany\(payload\.intendedUse/);
+  assert.match(readingApi, /selected\.join\("，"\)/);
   assert.match(page, /convertReadingToMilestone/);
   assert.match(page, /Promise\.all\(\[/);
   assert.match(schema, /brandProgress/);
