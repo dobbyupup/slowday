@@ -309,6 +309,7 @@ body.canvas-open{overflow:hidden}.inspiration-canvas{position:fixed;z-index:40;i
 .todo-title-edit:hover{color:#aa5733}
 .canvas-file-input{display:none}
 .canvas-group{position:absolute;left:0;top:0;z-index:0;border:2px dashed rgba(164,92,52,.48);border-radius:22px;background:rgba(255,247,229,.34);box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);pointer-events:auto;cursor:move}
+.canvas-group.drop-target{border-color:#b85f37;background:rgba(244,208,159,.48);box-shadow:inset 0 0 0 3px rgba(184,95,55,.16),0 0 0 6px rgba(255,248,232,.58)}
 .canvas-group>header{display:flex;align-items:center;justify-content:space-between;min-height:42px;padding:5px 8px 5px 15px;border-bottom:1px solid rgba(164,92,52,.2);background:rgba(242,221,188,.7);border-radius:20px 20px 0 0}
 .canvas-group input{min-width:0;flex:1;border:0;background:transparent;color:#6c4936;font:700 14px Georgia,"Songti SC",serif;outline:0}
 .canvas-group button,.canvas-note header button{width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:#8d624c;cursor:pointer}

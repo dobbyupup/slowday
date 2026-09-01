@@ -28,7 +28,7 @@ export type BrandProfile = { story: string; philosophy: string; audience: string
 export type BrandProfileVersion = { id: number; version: number; snapshot: BrandProfile; changeNote: string; createdAt: string };
 
 export type ReadingCanvasLayout = {
-  nodes: Array<{ readingItemId: number; x: number; y: number; width?: number; height?: number }>;
+  nodes: Array<{ readingItemId: number; x: number; y: number; width?: number; height?: number; groupId?: string }>;
   edges: Array<{ from: number; to: number }>;
   notes: Array<{ id: string; x: number; y: number; text: string }>;
   groups: Array<{ id: string; x: number; y: number; width: number; height: number; title: string }>;
@@ -274,7 +274,7 @@ function InspirationCanvas({ tag, items, onClose, onLoad, onSave, onImportMedia 
   const notesRef = useRef<ReadingCanvasLayout["notes"]>([]);
   const groupsRef = useRef<ReadingCanvasLayout["groups"]>([]);
   const excludedItemIdsRef = useRef<number[]>([]);
-  const dragRef = useRef<null | { type: "node" | "note" | "group" | "resize" | "pan"; pointerId: number; id?: number | string; startX: number; startY: number; originX: number; originY: number; originWidth?: number; originHeight?: number }>(null);
+  const dragRef = useRef<null | { type: "node" | "note" | "group" | "resize" | "pan"; pointerId: number; id?: number | string; startX: number; startY: number; originX: number; originY: number; originWidth?: number; originHeight?: number; memberOrigins?: Array<{ readingItemId: number; x: number; y: number }> }>(null);
   const saveTimerRef = useRef<number | null>(null);
   const [canvasItems, setCanvasItems] = useState<ReadingItem[]>([]);
   const [nodes, setNodes] = useState<ReadingCanvasLayout["nodes"]>([]);
@@ -282,6 +282,7 @@ function InspirationCanvas({ tag, items, onClose, onLoad, onSave, onImportMedia 
   const [notes, setNotes] = useState<ReadingCanvasLayout["notes"]>([]);
   const [groups, setGroups] = useState<ReadingCanvasLayout["groups"]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+  const [dropGroupId, setDropGroupId] = useState<string | null>(null);
   const [view, setView] = useState({ x: 110, y: 90, scale: 1 });
   const [linkingFrom, setLinkingFrom] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -323,7 +324,7 @@ function InspirationCanvas({ tag, items, onClose, onLoad, onSave, onImportMedia 
     if ((event.target as HTMLElement).closest("button,textarea,input")) return;
     if (type === "node") setSelectedNodeId(Number(id));
     event.stopPropagation(); rootRef.current?.setPointerCapture(event.pointerId);
-    dragRef.current = { type, pointerId: event.pointerId, id, startX: event.clientX, startY: event.clientY, originX: x, originY: y };
+    dragRef.current = { type, pointerId: event.pointerId, id, startX: event.clientX, startY: event.clientY, originX: x, originY: y, ...(type === "group" ? { memberOrigins: nodesRef.current.filter(node => node.groupId === id).map(node => ({ readingItemId: node.readingItemId, x: node.x, y: node.y })) } : {}) };
   }
   function beginResize(event: ReactPointerEvent<HTMLButtonElement>, node: ReadingCanvasLayout["nodes"][number]) {
     event.preventDefault(); event.stopPropagation(); setSelectedNodeId(node.readingItemId); rootRef.current?.setPointerCapture(event.pointerId);
@@ -340,14 +341,23 @@ function InspirationCanvas({ tag, items, onClose, onLoad, onSave, onImportMedia 
     if (drag.type === "pan") { setView(current => ({ ...current, x: drag.originX + event.clientX - drag.startX, y: drag.originY + event.clientY - drag.startY })); return; }
     const x = Math.round(drag.originX + (event.clientX - drag.startX) / view.scale); const y = Math.round(drag.originY + (event.clientY - drag.startY) / view.scale);
     if (drag.type === "resize") { const width = Math.round(Math.min(720, Math.max(160, (drag.originWidth ?? 240) + (event.clientX - drag.startX) / view.scale))); const height = Math.round(Math.min(720, Math.max(150, (drag.originHeight ?? 204) + (event.clientY - drag.startY) / view.scale))); const next = nodesRef.current.map(node => node.readingItemId === drag.id ? { ...node, width, height } : node); nodesRef.current = next; setNodes(next); return; }
-    if (drag.type === "node") { const next = nodesRef.current.map(node => node.readingItemId === drag.id ? { ...node, x, y } : node); nodesRef.current = next; setNodes(next); }
+    if (drag.type === "node") { const next = nodesRef.current.map(node => node.readingItemId === drag.id ? { ...node, x, y } : node); nodesRef.current = next; setNodes(next); const moving = next.find(node => node.readingItemId === drag.id); setDropGroupId(moving ? findContainingGroup(moving)?.id ?? null : null); }
     if (drag.type === "note") { const next = notesRef.current.map(note => note.id === drag.id ? { ...note, x, y } : note); notesRef.current = next; setNotes(next); }
-    if (drag.type === "group") { const next = groupsRef.current.map(group => group.id === drag.id ? { ...group, x, y } : group); groupsRef.current = next; setGroups(next); }
+    if (drag.type === "group") { const next = groupsRef.current.map(group => group.id === drag.id ? { ...group, x, y } : group); groupsRef.current = next; setGroups(next); const dx = x - drag.originX; const dy = y - drag.originY; const origins = new Map((drag.memberOrigins || []).map(node => [node.readingItemId, node])); const nextNodes = nodesRef.current.map(node => { const origin = origins.get(node.readingItemId); return origin ? { ...node, x: origin.x + dx, y: origin.y + dy } : node; }); nodesRef.current = nextNodes; setNodes(nextNodes); }
   }
   function endPointer(event: ReactPointerEvent<HTMLDivElement>) {
     const drag = dragRef.current; if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null; if (rootRef.current?.hasPointerCapture(event.pointerId)) rootRef.current.releasePointerCapture(event.pointerId);
-    if (drag.type !== "pan") queueSave();
+    if (drag.type === "node") {
+      const current = nodesRef.current.find(node => node.readingItemId === drag.id); const group = current ? findContainingGroup(current) : undefined;
+      const next = nodesRef.current.map(node => { if (node.readingItemId !== drag.id) return node; if (!group) return { ...node, groupId: undefined }; const width = node.width ?? 240; const height = node.height ?? 204; return { ...node, groupId: group.id, x: Math.round(Math.min(group.x + group.width - width - 16, Math.max(group.x + 16, node.x))), y: Math.round(Math.min(group.y + group.height - height - 16, Math.max(group.y + 52, node.y))) }; });
+      nodesRef.current = next; setNodes(next); setDropGroupId(null); queueSave(next); return;
+    }
+    setDropGroupId(null); if (drag.type !== "pan") queueSave();
+  }
+  function findContainingGroup(node: ReadingCanvasLayout["nodes"][number]) {
+    const centerX = node.x + (node.width ?? 240) / 2; const centerY = node.y + (node.height ?? 204) / 2;
+    return [...groupsRef.current].reverse().find(group => centerX >= group.x && centerX <= group.x + group.width && centerY >= group.y + 42 && centerY <= group.y + group.height);
   }
   function zoomCanvas(event: ReactWheelEvent<HTMLDivElement>) {
     event.preventDefault(); const rect = event.currentTarget.getBoundingClientRect();
@@ -409,7 +419,7 @@ function InspirationCanvas({ tag, items, onClose, onLoad, onSave, onImportMedia 
       <div className="canvas-toolbar-actions"><span className={`canvas-save-state ${saveState}`}>{importing ? "图片导入中…" : saveState === "saving" ? "保存中…" : saveState === "error" ? "保存失败" : "已保存"}</span><button onClick={addGroup}>＋ 分组</button><button onClick={addNote}>＋ 文本</button><button onClick={() => fileInputRef.current?.click()}>＋ 图片</button><input ref={fileInputRef} className="canvas-file-input" type="file" accept="image/*" multiple onChange={event => { void importFiles(Array.from(event.target.files || [])); event.currentTarget.value = ""; }} /><button className="canvas-delete-selected" disabled={selectedNodeId === null} onClick={() => selectedNodeId !== null && deleteCanvasNode(selectedNodeId)}>删除所选</button><button onClick={() => setView({ x: 110, y: 90, scale: 1 })}>回到中心</button><button className="canvas-close" onClick={onClose} aria-label="关闭灵感画布">×</button></div>
     </header>
     {loading ? <div className="canvas-loading">正在展开这组灵感…</div> : <div className="inspiration-canvas-world" style={{ transform: `translate(${view.x}px,${view.y}px) scale(${view.scale})` }}>
-      {groups.map(group => <section className="canvas-group" key={group.id} style={{ transform: `translate(${group.x}px,${group.y}px)`, width: group.width, height: group.height }} onPointerDown={event => beginMove(event, "group", group.id, group.x, group.y)}><header><input value={group.title} onChange={event => { const next = groupsRef.current.map(item => item.id === group.id ? { ...item, title: event.target.value } : item); groupsRef.current = next; setGroups(next); }} onBlur={() => queueSave()} aria-label="编辑分组名称" /><button onClick={() => { const next = groupsRef.current.filter(item => item.id !== group.id); setGroups(next); queueSave(nodesRef.current, edgesRef.current, notesRef.current, next); }} aria-label="删除分组">×</button></header></section>)}
+      {groups.map(group => <section className={`canvas-group ${dropGroupId === group.id ? "drop-target" : ""}`} key={group.id} style={{ transform: `translate(${group.x}px,${group.y}px)`, width: group.width, height: group.height }} onPointerDown={event => beginMove(event, "group", group.id, group.x, group.y)}><header><input value={group.title} onChange={event => { const next = groupsRef.current.map(item => item.id === group.id ? { ...item, title: event.target.value } : item); groupsRef.current = next; setGroups(next); }} onBlur={() => queueSave()} aria-label="编辑分组名称" /><button onClick={() => { const nextGroups = groupsRef.current.filter(item => item.id !== group.id); const nextNodes = nodesRef.current.map(node => node.groupId === group.id ? { ...node, groupId: undefined } : node); setGroups(nextGroups); setNodes(nextNodes); queueSave(nextNodes, edgesRef.current, notesRef.current, nextGroups); }} aria-label="删除分组">×</button></header></section>)}
       <svg className="canvas-connections" viewBox="-5000 -5000 20000 20000" aria-label="灵感卡片连线"><defs><marker id="canvas-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" /></marker></defs>{edges.map(edge => { const from = nodeById.get(edge.from); const to = nodeById.get(edge.to); if (!from || !to) return null; const x1 = from.x + (from.width ?? 240), y1 = from.y + (from.height ?? 204) / 2, x2 = to.x, y2 = to.y + (to.height ?? 204) / 2; const bend = Math.max(70, Math.abs(x2 - x1) * .45); return <path markerEnd="url(#canvas-arrow)" key={`${edge.from}-${edge.to}`} d={`M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`} onClick={event => { event.stopPropagation(); removeEdge(edge.from, edge.to); }}><title>点击删除这条连接</title></path>; })}</svg>
       {notes.map(note => <article className="canvas-note" key={note.id} style={{ transform: `translate(${note.x}px,${note.y}px)` }} onPointerDown={event => beginMove(event, "note", note.id, note.x, note.y)}><header><span>TEXT NOTE</span><button onClick={() => { const next = notesRef.current.filter(item => item.id !== note.id); setNotes(next); queueSave(nodesRef.current, edgesRef.current, next); }} aria-label="删除文本">×</button></header><textarea value={note.text} onChange={event => { const next = notesRef.current.map(item => item.id === note.id ? { ...item, text: event.target.value } : item); notesRef.current = next; setNotes(next); }} onBlur={() => queueSave()} aria-label="编辑画布文本" /></article>)}
       {canvasItems.map(item => { const node = nodeById.get(item.id); if (!node) return null; return <article className={`canvas-node ${linkingFrom === item.id ? "linking" : ""} ${selectedNodeId === item.id ? "selected" : ""}`} key={item.id} aria-selected={selectedNodeId === item.id} style={{ transform: `translate(${node.x}px,${node.y}px)`, width: node.width ?? 240, height: node.height ?? 204 }} onPointerDown={event => beginMove(event, "node", node.readingItemId, node.x, node.y)}><div className="canvas-node-image">{item.imageUrl ? <img src={item.imageUrl} alt="" draggable={false} referrerPolicy="no-referrer" /> : <span>NO IMAGE</span>}</div><div className="canvas-node-copy"><small>{item.source || `#${tag}`}</small><h3>{item.title}</h3></div><button className="canvas-link-handle" title={linkingFrom === null ? "选择连接起点" : linkingFrom === item.id ? "取消连接" : "连接到这张卡片"} aria-label="连接这张灵感卡片" onClick={event => { event.stopPropagation(); connectNode(item.id); }} /><button className="canvas-resize-handle" aria-label="调整图片卡片大小" title="拖动调整大小" onPointerDown={event => beginResize(event, node)} /></article>; })}

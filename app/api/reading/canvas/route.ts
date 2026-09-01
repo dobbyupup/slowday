@@ -3,7 +3,7 @@ import { getDb } from "../../../../db";
 import { readingCanvases, readingItems } from "../../../../db/schema";
 import { apiError, ApiError, boundedText, readJson, requireApiUser } from "../../_shared";
 
-type CanvasNode = { readingItemId: number; x: number; y: number; width?: number; height?: number };
+type CanvasNode = { readingItemId: number; x: number; y: number; width?: number; height?: number; groupId?: string };
 type CanvasEdge = { from: number; to: number };
 type CanvasNote = { id: string; x: number; y: number; text: string };
 type CanvasGroup = { id: string; x: number; y: number; width: number; height: number; title: string };
@@ -44,12 +44,12 @@ async function validateLayout(ownerId: string, rawNodes: unknown, rawEdges: unkn
     const value = raw as Record<string, unknown>;
     const readingItemId = Number(value.readingItemId);
     const x = Number(value.x);
-    const y = Number(value.y); const width = value.width === undefined ? undefined : Number(value.width); const height = value.height === undefined ? undefined : Number(value.height);
+    const y = Number(value.y); const width = value.width === undefined ? undefined : Number(value.width); const height = value.height === undefined ? undefined : Number(value.height); const groupId = typeof value.groupId === "string" ? value.groupId.slice(0, 80) : undefined;
     if (!Number.isInteger(readingItemId) || readingItemId <= 0 || !Number.isFinite(x) || !Number.isFinite(y) || Math.abs(x) > 100_000 || Math.abs(y) > 100_000) throw new ApiError(400, "画布卡片位置不正确");
     if ((width !== undefined && (!Number.isFinite(width) || width < 160 || width > 720)) || (height !== undefined && (!Number.isFinite(height) || height < 150 || height > 720))) throw new ApiError(400, "画布卡片尺寸不正确");
     if (ids.has(readingItemId)) continue;
     ids.add(readingItemId);
-    nodes.push({ readingItemId, x: Math.round(x), y: Math.round(y), ...(width === undefined ? {} : { width: Math.round(width) }), ...(height === undefined ? {} : { height: Math.round(height) }) });
+    nodes.push({ readingItemId, x: Math.round(x), y: Math.round(y), ...(width === undefined ? {} : { width: Math.round(width) }), ...(height === undefined ? {} : { height: Math.round(height) }), ...(groupId ? { groupId } : {}) });
   }
   if (nodes.length) {
     const owned = await getDb().select({ id: readingItems.id }).from(readingItems)
@@ -101,7 +101,9 @@ async function validateLayout(ownerId: string, rawNodes: unknown, rawEdges: unkn
     const owned = await getDb().select({ id: readingItems.id }).from(readingItems).where(and(eq(readingItems.ownerId, ownerId), inArray(readingItems.id, excludedItemIds)));
     if (owned.length !== excludedItemIds.length) throw new ApiError(403, "画布中包含无权访问的灵感");
   }
-  return { nodes, edges, notes, groups, excludedItemIds };
+  const validGroupIds = new Set(groups.map(group => group.id));
+  const normalizedNodes = nodes.map(node => node.groupId && !validGroupIds.has(node.groupId) ? { ...node, groupId: undefined } : node);
+  return { nodes: normalizedNodes, edges, notes, groups, excludedItemIds };
 }
 
 function parseStoredLayout(value: string): CanvasLayout {
