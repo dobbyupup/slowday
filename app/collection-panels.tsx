@@ -24,7 +24,7 @@ export type ReadingItem = {
   updatedAt: string;
 };
 
-export type BrandProfile = { story: string; philosophy: string; audience: string; keywords: string; differentiation: string; productDirection: string; visualLanguage: string; annualGoal: string; version: number; updatedAt?: string | null };
+export type BrandProfile = { story: string; philosophy: string; audience: string; keywords: string; differentiation: string; productDirection: string; visualLanguage: string; annualGoal: string; branchLabels?: Record<string, string>; version: number; updatedAt?: string | null };
 export type BrandProfileVersion = { id: number; version: number; snapshot: BrandProfile; changeNote: string; createdAt: string };
 
 export type ReadingCanvasLayout = {

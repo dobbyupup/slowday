@@ -284,6 +284,7 @@ body.canvas-open{overflow:hidden}.inspiration-canvas{position:fixed;z-index:40;i
 .empty .archive-branch-copy em{color:#a99789}
 .archive-branch-action{align-self:end;color:#aa5733;font-size:10px;font-weight:900}
 .brand-branch-editor{width:min(620px,calc(100vw - 32px))}
+.archive-actions .archive-edit-button{display:grid;width:46px;height:46px;padding:0;place-items:center;font:700 25px Georgia,serif;line-height:1}
 .brand-branch-editor>small{color:#b65f38;font-size:9px;font-weight:900;letter-spacing:1.5px}
 .brand-branch-editor h2{margin:9px 0 8px;font:700 38px Georgia,"Songti SC",serif}
 .brand-branch-editor>p{margin:0 0 18px;color:#806c5c;line-height:1.65}

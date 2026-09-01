@@ -141,6 +141,7 @@ export const brandProfiles = sqliteTable("brand_profiles", {
   productDirection: text("product_direction").notNull().default(""),
   visualLanguage: text("visual_language").notNull().default(""),
   annualGoal: text("annual_goal").notNull().default(""),
+  branchLabels: text("branch_labels").notNull().default("{}"),
   version: integer("version").notNull().default(1),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });

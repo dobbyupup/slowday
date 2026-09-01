@@ -49,6 +49,7 @@ export function BrandArchivePage({ profile, history, knowledgeStats, readings, e
   const [editingField, setEditingField] = useState<ArchiveBranchKey | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [branchDraft, setBranchDraft] = useState("");
+  const [branchTitleDraft, setBranchTitleDraft] = useState("");
   const autoEvolutionKey = useRef("");
 
   useEffect(() => {
@@ -62,26 +63,29 @@ export function BrandArchivePage({ profile, history, knowledgeStats, readings, e
   const changedFields = proposal ? [...profileFields, ...extendedFields].filter(([key]) => proposal[key] !== profile[key]) : [];
 
   function openBranch(key: ArchiveBranchKey) {
+    const branch = archiveBranches.find(([branchKey]) => branchKey === key)!;
     setBranchDraft(profile[key]);
+    setBranchTitleDraft(profile.branchLabels?.[key] || branch[1]);
     setEditingField(key);
   }
 
   async function saveBranch() {
     if (!editingField) return;
-    await onSave({ ...profile, [editingField]: branchDraft.trim() });
+    const branch = archiveBranches.find(([key]) => key === editingField)!;
+    await onSave({ ...profile, [editingField]: branchDraft.trim(), branchLabels: { ...profile.branchLabels, [editingField]: branchTitleDraft.trim() || branch[1] } });
     setEditingField(null);
   }
 
   async function acceptProposal() {
     if (!proposal) return;
-    await onSave(proposal);
+    await onSave({ ...proposal, branchLabels: profile.branchLabels });
     onDismissProposal();
   }
 
   return <section className="brand-archive-page">
     <header className="brand-archive-hero">
       <div><small>BRAND ARCHIVE · v{profile.version || 0}</small><h1>品牌档案</h1><p>品牌判断的长期基准，也会随知识库持续更新。</p></div>
-      <div className="archive-actions"><button onClick={() => setHistoryOpen(value => !value)}>历史迭代记录 {history.length}</button><button onClick={() => openBranch(archiveBranches.find(([key]) => !profile[key])?.[0] || "story")}>自定义卡片</button></div>
+      <div className="archive-actions"><button onClick={() => setHistoryOpen(value => !value)}>历史迭代记录 {history.length}</button><button className="archive-edit-button" onClick={() => openBranch(archiveBranches.find(([key]) => !profile[key])?.[0] || "story")} aria-label="编辑自定义卡片" title="编辑自定义卡片">✎</button></div>
     </header>
 
     <section className="archive-evolution-status">
@@ -93,10 +97,10 @@ export function BrandArchivePage({ profile, history, knowledgeStats, readings, e
 
     <section className="archive-branch-directory" aria-label="品牌档案分支">
       <header><div><small>BRAND BRANCHES</small><h2>档案分支</h2></div><p>{archiveBranches.filter(([key]) => profile[key].trim()).length} / {archiveBranches.length} 已完善</p></header>
-      <div>{archiveBranches.map(([key, label, , placeholder]) => <button type="button" className={profile[key].trim() ? "complete" : "empty"} key={key} onClick={() => openBranch(key)} aria-label={`编辑${label}`}>
-        <span className="archive-branch-copy"><b>{label}</b><em>{profile[key] || placeholder}</em></span>
+      <div>{archiveBranches.map(([key, label, , placeholder]) => { const customLabel = profile.branchLabels?.[key] || label; return <button type="button" className={profile[key].trim() ? "complete" : "empty"} key={key} onClick={() => openBranch(key)} aria-label={`编辑${customLabel}`}>
+        <span className="archive-branch-copy"><b>{customLabel}</b><em>{profile[key] || placeholder}</em></span>
         <span className="archive-branch-action">↗</span>
-      </button>)}</div>
+      </button>; })}</div>
     </section>
 
     {(evolving || proposal) && <section className="archive-proposal">
@@ -111,13 +115,13 @@ export function BrandArchivePage({ profile, history, knowledgeStats, readings, e
 
     {historyOpen && <section className="archive-history-panel"><header><div><small>VERSION HISTORY</small><h2>历史迭代记录</h2><p>系统会自动检测每次提交的变化，并保留当时提交的完整内容。</p></div><button onClick={() => setHistoryOpen(false)}>×</button></header>{history.length ? <div>{history.map((version, index) => {
       const older = history[index + 1]?.snapshot;
-      const changes = archiveBranches.filter(([key]) => (version.snapshot[key] || "").trim() !== (older?.[key] || "").trim());
-      return <article key={version.id}><header><b>v{version.version}</b><time>{new Date(version.createdAt).toLocaleString("zh-CN", { dateStyle: "medium", timeStyle: "short" })}</time></header><p>{version.changeNote || "系统检测到品牌档案已更新"}</p><details><summary>查看本次提交资料 · {changes.length} 个分支</summary><div className="archive-version-materials">{changes.length ? changes.map(([key, label]) => <section key={key}><b>{label}</b><p>{version.snapshot[key] || "已清空"}</p></section>) : <span>本次保存未检测到文字变化。</span>}</div></details></article>;
+      const changes = archiveBranches.filter(([key, label]) => (version.snapshot[key] || "").trim() !== (older?.[key] || "").trim() || (version.snapshot.branchLabels?.[key] || label) !== (older?.branchLabels?.[key] || label));
+      return <article key={version.id}><header><b>v{version.version}</b><time>{new Date(version.createdAt).toLocaleString("zh-CN", { dateStyle: "medium", timeStyle: "short" })}</time></header><p>{version.changeNote || "系统检测到品牌档案已更新"}</p><details><summary>查看本次提交资料 · {changes.length} 个分支</summary><div className="archive-version-materials">{changes.length ? changes.map(([key, label]) => <section key={key}><b>{version.snapshot.branchLabels?.[key] || label}</b><p>{version.snapshot[key] || "已清空"}</p></section>) : <span>本次保存未检测到文字变化。</span>}</div></details></article>;
     })}</div> : <p>保存第一版之后，每一次更新都会自动留在这里。</p>}</section>}
 
     {editingField && (() => {
       const branch = archiveBranches.find(([key]) => key === editingField)!;
-      return <div className="modal-backdrop" onMouseDown={() => setEditingField(null)}><section className="composer brand-branch-editor" role="dialog" aria-modal="true" aria-label={`编辑${branch[1]}`} onMouseDown={event => event.stopPropagation()}><button className="close" onClick={() => setEditingField(null)}>×</button><small>{branch[2]} · BRAND BRANCH</small><h2>{branch[1]}</h2><p>这里只编辑这一条分支。系统会自动识别本次变化并写入历史迭代记录。</p><label><span>{branch[1]}</span><textarea autoFocus value={branchDraft} onChange={event => setBranchDraft(event.target.value)} placeholder={branch[3]} /></label><button className="primary-btn wide" onClick={() => void saveBranch()}>保存这一分支 · v{profile.version + 1}</button></section></div>;
+      return <div className="modal-backdrop" onMouseDown={() => setEditingField(null)}><section className="composer brand-branch-editor" role="dialog" aria-modal="true" aria-label={`编辑${branchTitleDraft || branch[1]}`} onMouseDown={event => event.stopPropagation()}><button className="close" onClick={() => setEditingField(null)}>×</button><small>{branch[2]} · BRAND BRANCH</small><h2>编辑自定义卡片</h2><p>标题分类和内容都可以修改。系统会自动识别本次变化并写入历史迭代记录。</p><label><span>卡片标题</span><input autoFocus value={branchTitleDraft} maxLength={30} onChange={event => setBranchTitleDraft(event.target.value)} placeholder={branch[1]} /></label><label><span>卡片内容</span><textarea value={branchDraft} onChange={event => setBranchDraft(event.target.value)} placeholder={branch[3]} /></label><button className="primary-btn wide" onClick={() => void saveBranch()}>保存这张卡片 · v{profile.version + 1}</button></section></div>;
     })()}
   </section>;
 }

@@ -1,0 +1,1 @@
+ALTER TABLE `brand_profiles` ADD `branch_labels` text DEFAULT '{}' NOT NULL;

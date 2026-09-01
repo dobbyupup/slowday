@@ -6,8 +6,20 @@ import { apiError, boundedText, readJson, requireApiUser } from "../_shared";
 const emptyProfile = { story: "", philosophy: "", audience: "", keywords: "", differentiation: "", productDirection: "", visualLanguage: "", annualGoal: "", version: 0, updatedAt: null };
 const branchLabels = { story: "品牌故事", philosophy: "核心理念", audience: "目标用户", keywords: "品牌关键词", differentiation: "差异化特点", productDirection: "产品方向", visualLanguage: "视觉语言", annualGoal: "年度目标" } as const;
 
+function parseBranchLabels(value?: string) {
+  try {
+    const parsed = JSON.parse(value || "{}") as Record<string, unknown>;
+    return Object.fromEntries(Object.keys(branchLabels).flatMap(key => typeof parsed[key] === "string" && parsed[key].trim() ? [[key, parsed[key].trim().slice(0, 30)]] : []));
+  } catch { return {}; }
+}
+
+function readBranchLabels(value: unknown, fallback = "{}") {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : parseBranchLabels(fallback);
+  return Object.fromEntries(Object.keys(branchLabels).flatMap(key => typeof source[key] === "string" && source[key].trim() ? [[key, boundedText(source[key], "卡片标题", 30)]] : []));
+}
+
 function publicProfile(row?: typeof brandProfiles.$inferSelect) {
-  return row ? { story: row.story, philosophy: row.philosophy, audience: row.audience, keywords: row.keywords, differentiation: row.differentiation, productDirection: row.productDirection, visualLanguage: row.visualLanguage, annualGoal: row.annualGoal, version: row.version, updatedAt: row.updatedAt } : emptyProfile;
+  return row ? { story: row.story, philosophy: row.philosophy, audience: row.audience, keywords: row.keywords, differentiation: row.differentiation, productDirection: row.productDirection, visualLanguage: row.visualLanguage, annualGoal: row.annualGoal, branchLabels: parseBranchLabels(row.branchLabels), version: row.version, updatedAt: row.updatedAt } : emptyProfile;
 }
 
 export async function GET(request: Request) {
@@ -37,6 +49,7 @@ export async function PUT(request: Request) {
     const db = getDb();
     const [previous] = await db.select().from(brandProfiles).where(eq(brandProfiles.ownerId, user.id)).limit(1);
     const version = (previous?.version ?? 0) + 1;
+    const nextBranchLabels = readBranchLabels(payload.branchLabels, previous?.branchLabels);
     const values = {
       ownerId: user.id,
       story: boundedText(payload.story, "品牌故事", 3000),
@@ -47,11 +60,13 @@ export async function PUT(request: Request) {
       productDirection: boundedText(payload.productDirection, "产品方向", 1500),
       visualLanguage: boundedText(payload.visualLanguage, "视觉语言", 1500),
       annualGoal: boundedText(payload.annualGoal, "年度目标", 1500),
+      branchLabels: JSON.stringify(nextBranchLabels),
       version,
       updatedAt: new Date(),
     };
-    const snapshot = JSON.stringify({ ...values, ownerId: undefined, updatedAt: undefined });
-    const changedBranches = Object.entries(branchLabels).filter(([key]) => (previous?.[key as keyof typeof branchLabels] || "").trim() !== values[key as keyof typeof branchLabels].trim()).map(([, label]) => label);
+    const snapshot = JSON.stringify({ ...values, branchLabels: nextBranchLabels, ownerId: undefined, updatedAt: undefined });
+    const previousBranchLabels = parseBranchLabels(previous?.branchLabels);
+    const changedBranches = Object.entries(branchLabels).filter(([key, defaultLabel]) => (previous?.[key as keyof typeof branchLabels] || "").trim() !== values[key as keyof typeof branchLabels].trim() || (previousBranchLabels[key] || defaultLabel) !== (nextBranchLabels[key] || defaultLabel)).map(([key, defaultLabel]) => nextBranchLabels[key] || defaultLabel);
     const changeNote = changedBranches.length
       ? `系统检测：${previous ? "本次更新" : "首次建立"}${changedBranches.join("、")}${changedBranches.length > 1 ? `等 ${changedBranches.length} 个分支` : ""}`
       : "系统检测：本次保存未发现文字变化";
