@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FocusEvent as ReactFocusEvent, type MouseEvent as ReactMouseEvent } from "react";
-import { FollowUpPage, HomeDashboard, ReadingTimeline, type BrandMilestone, type BrandPhase, type BrandProfile, type BrandProfileVersion, type BrandProgress, type ReadingCanvasLayout, type ReadingItem } from "./collection-panels";
+import { FollowUpPage, HomeDashboard, ReadingTimeline, formatReadingAnalysis, type BrandMilestone, type BrandPhase, type BrandProfile, type BrandProfileVersion, type BrandProgress, type ReadingCanvasLayout, type ReadingItem } from "./collection-panels";
 import { CalendarIcon } from "./calendar-icon";
 import { BrandArchivePage, type BrandEvolutionProposal, type BrandKnowledgeStats } from "./brand-archive";
 
@@ -756,7 +756,7 @@ export default function Home() {
 
   function editReading(item: ReadingItem) {
     setReadingEditingId(item.id);
-    setReadingDraft({ date: item.date, title: item.title, source: item.source, url: item.url, imageUrl: item.imageUrl, note: item.note, tags: item.tags || "", resourceType: item.resourceType, primaryCategory: item.primaryCategory, workflowStatus: item.workflowStatus, intendedUse: item.intendedUse, topic: item.topic || "" });
+    setReadingDraft({ date: item.date, title: item.title, source: item.source, url: item.url, imageUrl: item.imageUrl, note: formatReadingAnalysis(item.note), tags: item.tags || "", resourceType: item.resourceType, primaryCategory: item.primaryCategory, workflowStatus: item.workflowStatus, intendedUse: item.intendedUse, topic: item.topic || "" });
     setReadingTagInput("");
     setReadingModal(true);
   }

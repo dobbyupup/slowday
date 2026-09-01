@@ -335,6 +335,8 @@ test("reading timeline imports links, summarizes the archive, and keeps private 
   assert.match(interpretApi, /设计准则｜/);
   assert.match(interpretApi, /设计参考｜/);
   assert.match(interpretApi, /真正值得借鉴｜/);
+  assert.match(interpretApi, /\.join\("\\n\\n"\)/);
+  assert.match(panels, /formatReadingAnalysis/);
   assert.match(interpretApi, /normalizedTags\.join\(","\)/);
   assert.match(mediaApi, /url: interpretation\.url/);
   assert.match(mediaApi, /tags: interpretation\.tags/);

@@ -149,7 +149,7 @@ function parseInterpretations(output: string | null, limit: number) {
     if (typeof value.title !== "string" || !value.title.trim() || !composition || !principles || !references || !inspiration) return null;
     const tags = Array.isArray(value.tags) ? value.tags : typeof value.tags === "string" ? value.tags.split(/[，,、;；\n]+/) : [];
     const normalizedTags = Array.from(new Set(tags.filter((tag): tag is string => typeof tag === "string").map(tag => tag.trim().replace(/^#/, "").slice(0, 16)).filter(Boolean))).slice(0, 8);
-    const description = [`设计比例｜${composition}`, `设计准则｜${principles}`, `设计参考｜${references}`, `真正值得借鉴｜${inspiration}`].join("\n").slice(0, 3000);
+    const description = [`设计比例｜${composition}`, `设计准则｜${principles}`, `设计参考｜${references}`, `真正值得借鉴｜${inspiration}`].join("\n\n").slice(0, 3000);
     const resourceTypes = ["图片", "网页链接", "文档", "文字想法", "用户反馈", "供应商资料"];
     const categories = ["品牌定位", "视觉系统", "产品设计", "材质工艺", "包装", "摄影", "内容文案", "用户洞察"];
     const uses = ["产品开发", "视觉设计", "包装设计", "拍摄计划", "内容选题", "品牌定位", "暂时研究"];
