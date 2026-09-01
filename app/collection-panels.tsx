@@ -442,7 +442,7 @@ export function FollowUpPage({ milestones, readings, onUpdate, onDelete, onEditR
   const done = milestones.filter(item => item.status === "done").length;
   const average = milestones.length ? Math.round(milestones.reduce((total, item) => total + item.progress, 0) / milestones.length) : 0;
   return <section className="followup-panel collection-panel">
-    <header className="collection-hero followup-hero"><div><small>FOLLOW-UP · 品牌行动</small><h1>把借鉴，变成<em>下一步。</em></h1><p>从灵感库收录值得继续研究的案例，明确借鉴点，并一路推进到真正落地。</p></div></header>
+    <header className="collection-hero followup-hero"><div><small>FOLLOW-UP · 品牌行动</small><h1>让灵感<em>继续发生。</em></h1><p>从灵感库收录值得继续研究的案例，明确借鉴点，并一路推进到真正落地。</p></div></header>
     <div className="followup-stats"><span><b>{milestones.length}</b> 条跟进</span><span><b>{milestones.length - done}</b> 条进行中</span><span><b>{average}%</b> 平均进度</span></div>
     {ordered.length ? <div className="followup-grid">{ordered.map(milestone => {
       const source = milestone.sourceReadingId ? readingById.get(milestone.sourceReadingId) : undefined;
