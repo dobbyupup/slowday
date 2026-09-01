@@ -336,7 +336,7 @@ body.canvas-open{overflow:hidden}.inspiration-canvas{position:fixed;z-index:40;i
 .inspiration-status-filter button,.inspiration-layout-switch button{flex:0 0 auto;height:42px;padding:0 12px;border:1.5px solid #b9a48d!important;border-radius:8px;background:#f1e4d3}
 .inspiration-status-filter button:last-of-type,.inspiration-layout-switch button:last-of-type{border-right:1.5px solid #b9a48d}
 .inspiration-tab-placeholder{flex:0 0 42px;width:42px;height:42px;border:1.5px solid #b9a48d;border-radius:8px;background:rgba(241,228,211,.5)}
-@media(min-width:1101px){.inspiration-toolbar{grid-template-columns:minmax(300px,1fr) 150px 226px 200px 172px}}
+@media(min-width:1101px){.inspiration-toolbar{grid-template-columns:minmax(260px,1fr) 150px max-content max-content max-content}}
 @media(max-width:760px){.inspiration-status-filter,.inspiration-layout-switch{overflow-x:auto}.inspiration-status-filter button,.inspiration-layout-switch button{flex:0 0 auto}}
 
 @media(min-width:761px){
