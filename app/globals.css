@@ -332,6 +332,12 @@ body.canvas-open{overflow:hidden}.inspiration-canvas{position:fixed;z-index:40;i
 .canvas-connections marker path{fill:#b6653f;stroke:none;filter:none;pointer-events:none}
 .canvas-drop-overlay{position:absolute;z-index:12;inset:100px 26px 26px;display:grid;place-items:center;border:3px dashed #b85f37;border-radius:20px;background:rgba(255,246,226,.86);color:#8c482d;font:700 24px Georgia,"Songti SC",serif;pointer-events:none;backdrop-filter:blur(5px)}
 .inspiration-canvas.drop-active{box-shadow:inset 0 0 0 5px rgba(184,95,55,.45)}
+.inspiration-status-filter,.inspiration-layout-switch{display:flex;align-items:center;justify-content:flex-start;gap:8px;border:0;border-radius:0;overflow:visible;background:transparent}
+.inspiration-status-filter button,.inspiration-layout-switch button{flex:0 0 auto;height:42px;padding:0 12px;border:1.5px solid #b9a48d!important;border-radius:8px;background:#f1e4d3}
+.inspiration-status-filter button:last-of-type,.inspiration-layout-switch button:last-of-type{border-right:1.5px solid #b9a48d}
+.inspiration-tab-placeholder{flex:0 0 42px;width:42px;height:42px;border:1.5px solid #b9a48d;border-radius:8px;background:rgba(241,228,211,.5)}
+@media(min-width:1101px){.inspiration-toolbar{grid-template-columns:minmax(300px,1fr) 150px 226px 200px 172px}}
+@media(max-width:760px){.inspiration-status-filter,.inspiration-layout-switch{overflow-x:auto}.inspiration-status-filter button,.inspiration-layout-switch button{flex:0 0 auto}}
 
 @media(min-width:761px){
   .brand-archive-page{display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:13px;width:100%;height:calc(100vh - 76px);padding:22px clamp(24px,3vw,48px);overflow:hidden}
