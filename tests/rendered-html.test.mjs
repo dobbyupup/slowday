@@ -458,6 +458,10 @@ test("tag pills open a durable draggable inspiration canvas", async () => {
   assert.match(panels, /onImportMedia\(images/);
   assert.match(panels, /canvas-note/);
   assert.match(panels, /canvas-group/);
+  assert.match(panels, /canvas-resize-handle/);
+  assert.match(panels, /event\.key === "Delete"/);
+  assert.match(panels, /deleteCanvasNode/);
+  assert.match(panels, /删除所选/);
   assert.match(panels, /markerEnd="url\(#canvas-arrow\)"/);
   assert.match(page, /\/api\/reading\/canvas/);
   assert.match(css, /\.inspiration-canvas\{/);
@@ -468,6 +472,8 @@ test("tag pills open a durable draggable inspiration canvas", async () => {
   assert.match(route, /eq\(readingItems\.ownerId, ownerId\)/);
   assert.match(route, /rawNotes/);
   assert.match(route, /rawGroups/);
+  assert.match(route, /excludedItemIds/);
+  assert.match(route, /画布卡片尺寸不正确/);
   assert.match(route, /onConflictDoUpdate/);
   assert.match(migration, /CREATE TABLE `reading_canvases`/);
 });
