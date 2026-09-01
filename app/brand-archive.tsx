@@ -81,7 +81,7 @@ export function BrandArchivePage({ profile, history, knowledgeStats, readings, e
   return <section className="brand-archive-page">
     <header className="brand-archive-hero">
       <div><small>BRAND ARCHIVE · v{profile.version || 0}</small><h1>品牌档案</h1><p>品牌判断的长期基准，也会随知识库持续更新。</p></div>
-      <div className="archive-actions"><button onClick={() => setHistoryOpen(value => !value)}>历史迭代记录 {history.length}</button><button onClick={() => openBranch(archiveBranches.find(([key]) => !profile[key])?.[0] || "story")}>{profile.version ? "完善一个分支" : "建立第一个分支"}</button></div>
+      <div className="archive-actions"><button onClick={() => setHistoryOpen(value => !value)}>历史迭代记录 {history.length}</button><button onClick={() => openBranch(archiveBranches.find(([key]) => !profile[key])?.[0] || "story")}>自定义卡片</button></div>
     </header>
 
     <section className="archive-evolution-status">
