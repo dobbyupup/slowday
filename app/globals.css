@@ -395,3 +395,4 @@ body.canvas-open{overflow:hidden}.inspiration-canvas{position:fixed;z-index:40;i
 .canvas-card-text-editor>div { display: flex; gap: 6px; }
 .canvas-card-text-editor button { padding: 4px 8px; font-size: 14px; cursor: pointer; }
 .canvas-card-text-editor [role=alert] { color: #a22f24; font-size: 14px; }
+.canvas-name h2 span[role=button] { cursor: text; }
