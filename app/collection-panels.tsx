@@ -187,13 +187,14 @@ type ReadingProps = {
   onLoadCanvas: (tag: string) => Promise<ReadingCanvasLayout>;
   onListCanvases: () => Promise<{ name: string }[]>;
   onCreateCanvas: (name: string) => Promise<void>;
+  onUpdateCanvasText: (id: number, title: string, source: string) => Promise<ReadingItem>;
   onRenameCanvas: (oldName: string, name: string) => Promise<void>;
   onSaveCanvas: (tag: string, layout: ReadingCanvasLayout) => Promise<void>;
   onConfirm: (item: ReadingItem) => Promise<void>;
   onImportMedia: (files: File[], message: string) => Promise<{ items: ReadingItem[]; interpretedCount?: number }>;
 };
 
-export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, onAdd, onEdit, onDelete, onReanalyze, milestones, onConvert, onLoadCanvas, onSaveCanvas, onListCanvases, onCreateCanvas, onRenameCanvas, onConfirm, onImportMedia }: ReadingProps) {
+export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, onAdd, onEdit, onDelete, onReanalyze, milestones, onConvert, onLoadCanvas, onSaveCanvas, onListCanvases, onCreateCanvas, onRenameCanvas, onUpdateCanvasText, onConfirm, onImportMedia }: ReadingProps) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "followup" | "untracked">("all");
   const [workflowFilter, setWorkflowFilter] = useState<"all" | "pending" | "confirmed">("all");
@@ -291,11 +292,11 @@ export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, o
         <footer>{safeReadingLink(selectedItem.url) && <a href={safeReadingLink(selectedItem.url)} target="_blank" rel="noreferrer">查看原文 ↗</a>}<div><button onClick={() => { setSelectedId(null); onEdit(selectedItem); }}>编辑</button><button className="promote" disabled={trackedIds.has(selectedItem.id)} onClick={() => void onConvert(selectedItem)}>{trackedIds.has(selectedItem.id) ? "已收录跟进" : "收录跟进"}</button><button onClick={() => { setSelectedId(null); onDelete(selectedItem); }}>删除</button></div></footer>
       </div>
     </aside></div>}
-    {canvasTag && <InspirationCanvas onRename={async name => { await onRenameCanvas(canvasTag, name); setCanvasNames(current => current.map(value => value === canvasTag ? name : value)); setCanvasTag(name); }} tag={canvasTag} items={items} onClose={() => setCanvasTag("")} onLoad={onLoadCanvas} onSave={onSaveCanvas} onImportMedia={onImportMedia} />}
+    {canvasTag && <InspirationCanvas onRename={async name => { await onRenameCanvas(canvasTag, name); setCanvasNames(current => current.map(value => value === canvasTag ? name : value)); setCanvasTag(name); }} onUpdateText={onUpdateCanvasText} tag={canvasTag} items={items} onClose={() => setCanvasTag("")} onLoad={onLoadCanvas} onSave={onSaveCanvas} onImportMedia={onImportMedia} />}
   </section>;
 }
 
-function InspirationCanvas({ tag, onRename, items, onClose, onLoad, onSave, onImportMedia }: { tag: string; onRename: (name: string) => Promise<void>; items: ReadingItem[]; onClose: () => void; onLoad: (tag: string) => Promise<ReadingCanvasLayout>; onSave: (tag: string, layout: ReadingCanvasLayout) => Promise<void>; onImportMedia: (files: File[], message: string) => Promise<{ items: ReadingItem[]; interpretedCount?: number }> }) {
+function InspirationCanvas({ tag, onUpdateText, onRename, items, onClose, onLoad, onSave, onImportMedia }: { tag: string; onUpdateText: (id: number, title: string, source: string) => Promise<ReadingItem>; onRename: (name: string) => Promise<void>; items: ReadingItem[]; onClose: () => void; onLoad: (tag: string) => Promise<ReadingCanvasLayout>; onSave: (tag: string, layout: ReadingCanvasLayout) => Promise<void>; onImportMedia: (files: File[], message: string) => Promise<{ items: ReadingItem[]; interpretedCount?: number }> }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(tag);
@@ -495,12 +496,35 @@ function InspirationCanvas({ tag, onRename, items, onClose, onLoad, onSave, onIm
       {groups.map(group => <section className={`canvas-group ${dropGroupId === group.id ? "drop-target" : ""}`} key={group.id} style={{ transform: `translate(${group.x}px,${group.y}px)`, width: group.width, height: group.height }} onPointerDown={event => beginMove(event, "group", group.id, group.x, group.y)}><header><input value={group.title} onChange={event => { const next = groupsRef.current.map(item => item.id === group.id ? { ...item, title: event.target.value } : item); groupsRef.current = next; setGroups(next); }} onBlur={() => queueSave()} aria-label="编辑分组名称" /><button onClick={() => { const nextGroups = groupsRef.current.filter(item => item.id !== group.id); const nextNodes = nodesRef.current.map(node => node.groupId === group.id ? { ...node, groupId: undefined } : node); setGroups(nextGroups); setNodes(nextNodes); queueSave(nextNodes, edgesRef.current, notesRef.current, nextGroups); }} aria-label="删除分组">×</button></header></section>)}
       <svg className="canvas-connections" viewBox="-5000 -5000 20000 20000" aria-label="灵感卡片连线"><defs><marker id="canvas-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" /></marker></defs>{edges.map(edge => { const from = nodeById.get(edge.from); const to = nodeById.get(edge.to); if (!from || !to) return null; const fromSide = edge.fromSide ?? "right"; const toSide = edge.toSide ?? "left"; const x1 = from.x + (fromSide === "right" ? (from.width ?? 240) : 0), y1 = from.y + (from.height ?? 204) / 2, x2 = to.x + (toSide === "right" ? (to.width ?? 240) : 0), y2 = to.y + (to.height ?? 204) / 2; const bend = Math.max(70, Math.abs(x2 - x1) * .45); const fromDirection = fromSide === "right" ? 1 : -1; const toDirection = toSide === "right" ? 1 : -1; return <path markerEnd="url(#canvas-arrow)" key={`${edge.from}-${edge.fromSide ?? "right"}-${edge.to}-${edge.toSide ?? "left"}`} d={`M ${x1} ${y1} C ${x1 + bend * fromDirection} ${y1}, ${x2 + bend * toDirection} ${y2}, ${x2} ${y2}`} onClick={event => { event.stopPropagation(); removeEdge(edge.from, edge.to, fromSide, toSide); }}><title>点击删除这条连接</title></path>; })}</svg>
       {notes.map(note => <article className="canvas-note" key={note.id} style={{ transform: `translate(${note.x}px,${note.y}px)` }} onPointerDown={event => beginMove(event, "note", note.id, note.x, note.y)}><header><span>TEXT NOTE</span><button onClick={() => { const next = notesRef.current.filter(item => item.id !== note.id); setNotes(next); queueSave(nodesRef.current, edgesRef.current, next); }} aria-label="删除文本">×</button></header><textarea value={note.text} onChange={event => { const next = notesRef.current.map(item => item.id === note.id ? { ...item, text: event.target.value } : item); notesRef.current = next; setNotes(next); }} onBlur={() => queueSave()} aria-label="编辑画布文本" /></article>)}
-      {canvasItems.map(item => { const node = nodeById.get(item.id); if (!node) return null; return <article className={`canvas-node ${linkingFrom?.id === item.id ? "linking" : ""} ${selectedNodeId === item.id ? "selected" : ""}`} key={item.id} aria-selected={selectedNodeId === item.id} style={{ transform: `translate(${node.x}px,${node.y}px)`, width: node.width ?? 240, height: node.height ?? 204 }} onPointerDown={event => beginMove(event, "node", node.readingItemId, node.x, node.y)}><div className="canvas-node-image">{item.imageUrl ? <img src={item.imageUrl} alt="" draggable={false} referrerPolicy="no-referrer" /> : <span>NO IMAGE</span>}</div><div className="canvas-node-copy"><small>{item.source || `#${tag}`}</small><h3>{item.title}</h3></div>{(["left", "right"] as const).map(side => <button key={side} className={`canvas-link-handle ${side}`} title={linkingFrom === null ? `从${side === "left" ? "左" : "右"}侧开始连接` : linkingFrom.id === item.id ? "取消连接" : `连接到这张卡片${side === "left" ? "左" : "右"}侧`} aria-label={`${side === "left" ? "左" : "右"}侧连接点`} onClick={event => { event.stopPropagation(); connectNode(item.id, side); }} />)}<button className="canvas-resize-handle" aria-label="调整图片卡片大小" title="拖动调整大小" onPointerDown={event => beginResize(event, node)} /></article>; })}
+      {canvasItems.map(item => { const node = nodeById.get(item.id); if (!node) return null; return <article className={`canvas-node ${linkingFrom?.id === item.id ? "linking" : ""} ${selectedNodeId === item.id ? "selected" : ""}`} key={item.id} aria-selected={selectedNodeId === item.id} style={{ transform: `translate(${node.x}px,${node.y}px)`, width: node.width ?? 240, height: node.height ?? 204 }} onPointerDown={event => beginMove(event, "node", node.readingItemId, node.x, node.y)}><div className="canvas-node-image">{item.imageUrl ? <img src={item.imageUrl} alt="" draggable={false} referrerPolicy="no-referrer" /> : <span>NO IMAGE</span>}</div><CanvasCardCopy item={item} onSelect={() => setSelectedNodeId(item.id)} onSave={async (title, source) => { const updated = await onUpdateText(item.id, title, source); setCanvasItems(current => current.map(row => row.id === updated.id ? updated : row)); }} />{(["left", "right"] as const).map(side => <button key={side} className={`canvas-link-handle ${side}`} title={linkingFrom === null ? `从${side === "left" ? "左" : "右"}侧开始连接` : linkingFrom.id === item.id ? "取消连接" : `连接到这张卡片${side === "left" ? "左" : "右"}侧`} aria-label={`${side === "left" ? "左" : "右"}侧连接点`} onClick={event => { event.stopPropagation(); connectNode(item.id, side); }} />)}<button className="canvas-resize-handle" aria-label="调整图片卡片大小" title="拖动调整大小" onPointerDown={event => beginResize(event, node)} /></article>; })}
     </div>}
     {!loading && !canvasItems.length && !notes.length && <div className="canvas-loading">拖入图片，或先添加一个文本与分组</div>}
     {dropActive && <div className="canvas-drop-overlay">松开鼠标，把图片放到画布中</div>}
     <div className="canvas-zoom">{Math.round(view.scale * 100)}%</div>
   </div>;
+}
+
+function CanvasCardCopy({ item, onSelect, onSave }: { item: ReadingItem; onSelect: () => void; onSave: (title: string, source: string) => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(item.title);
+  const [source, setSource] = useState(item.source);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  function startEditing() { setTitle(item.title); setSource(item.source); setError(""); setEditing(true); }
+  async function save() {
+    if (saving) return;
+    if (!title.trim()) { setError("请输入标题"); return; }
+    setSaving(true); setError("");
+    try { await onSave(title.trim(), source.trim()); setEditing(false); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "保存失败，请重试"); }
+    finally { setSaving(false); }
+  }
+  return editing ? <form className="canvas-card-text-editor" onPointerDown={event => event.stopPropagation()} onDoubleClick={event => event.stopPropagation()} onSubmit={event => { event.preventDefault(); void save(); }} onKeyDown={event => { event.stopPropagation(); if (event.key === "Escape" && !saving) setEditing(false); }}>
+    <label>来源<input aria-label="卡片来源" maxLength={120} disabled={saving} value={source} onChange={event => setSource(event.target.value)} /></label>
+    <label>标题<input aria-label="卡片标题" autoFocus maxLength={180} disabled={saving} value={title} onChange={event => setTitle(event.target.value)} /></label>
+    {error && <span role="alert">{error}</span>}
+    <div><button type="submit" disabled={saving}>{saving ? "保存中…" : "保存"}</button><button type="button" disabled={saving} onClick={() => setEditing(false)}>取消</button></div>
+  </form> : <div className="canvas-node-copy" role="button" tabIndex={0} title="双击编辑文字" aria-label={`编辑卡片文字：${item.title}`} onPointerDown={event => event.stopPropagation()} onClick={onSelect} onDoubleClick={event => { event.stopPropagation(); startEditing(); }} onKeyDown={event => { if (event.key === "Enter" || event.key === "F2") { event.preventDefault(); event.stopPropagation(); startEditing(); } }}><small>{item.source || "未标注来源"}</small><h3>{item.title}</h3></div>;
 }
 
 export function FollowUpPage({ milestones, readings, onUpdate, onDelete, onEditReading }: {

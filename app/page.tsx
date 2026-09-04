@@ -779,6 +779,12 @@ export default function Home() {
     setReadingDraft(draft => ({ ...draft, intendedUse: (next.length ? next : ["暂时研究"]).join("，") }));
   }
 
+  async function updateCanvasText(id: number, title: string, source: string) {
+    const result = await api<{ item: ReadingItem }>(`/api/reading/${id}`, { method: "PATCH", body: JSON.stringify({ title, source }) });
+    setReadingItems(current => current.map(item => item.id === id ? result.item : item));
+    return result.item;
+  }
+
   async function saveReading() {
     try {
       setSyncState("saving");
@@ -1129,7 +1135,7 @@ export default function Home() {
         ) : view === "followup" ? (
           <FollowUpPage milestones={brandMilestones} readings={readingItems} onUpdate={updateMilestone} onDelete={deleteMilestone} onEditReading={editReading} />
         ) : view === "reading" ? (
-          <ReadingTimeline items={readingItems} milestones={brandMilestones} summary={readingSummary} summaryLoading={readingSummaryLoading} onSummarize={() => void summarizeReading()} onAdd={newReading} onEdit={editReading} onDelete={item => void deleteReading(item)} onReanalyze={reanalyzeReading} onConvert={convertReadingToMilestone} onLoadCanvas={loadReadingCanvas} onSaveCanvas={saveReadingCanvas} onListCanvases={listReadingCanvases} onCreateCanvas={createReadingCanvas} onRenameCanvas={renameReadingCanvas} onConfirm={confirmReading} onImportMedia={importReadingMedia} />
+          <ReadingTimeline items={readingItems} milestones={brandMilestones} summary={readingSummary} summaryLoading={readingSummaryLoading} onSummarize={() => void summarizeReading()} onAdd={newReading} onEdit={editReading} onDelete={item => void deleteReading(item)} onReanalyze={reanalyzeReading} onConvert={convertReadingToMilestone} onLoadCanvas={loadReadingCanvas} onSaveCanvas={saveReadingCanvas} onListCanvases={listReadingCanvases} onCreateCanvas={createReadingCanvas} onRenameCanvas={renameReadingCanvas} onUpdateCanvasText={updateCanvasText} onConfirm={confirmReading} onImportMedia={importReadingMedia} />
         ) : (
           <section className="review-panel">
             <button className="back-link" onClick={() => setView("overview")}>← 返回复盘总览</button>

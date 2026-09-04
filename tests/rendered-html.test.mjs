@@ -453,6 +453,11 @@ test("named inspiration canvases are independent from tags", async () => {
   assert.match(panels, /InspirationCanvas/);
   assert.match(panels, /选择已有画布/);
   assert.match(panels, /修改画布名称/);
+  assert.match(panels, /双击编辑文字/);
+  assert.match(panels, /onDoubleClick=\{event => \{ event.stopPropagation\(\); startEditing\(\); \}\}/);
+  assert.match(panels, /卡片来源/);
+  assert.match(panels, /卡片标题/);
+  assert.match(page, /JSON.stringify\(\{ title, source \}\)/);
   assert.match(panels, /await saveChainRef.current/);
   assert.match(page, /method: "PATCH", body: JSON.stringify\(\{ oldName, name \}\)/);
   assert.match(route, /export async function PATCH/);
