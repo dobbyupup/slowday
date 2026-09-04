@@ -39,6 +39,32 @@ export async function PUT(request: Request) {
   } catch (error) { return apiError(error); }
 }
 
+export async function PATCH(request: Request) {
+  try {
+    const user = await requireApiUser(request, { mutation: true });
+    const payload = await readJson<{ oldName?: unknown; name?: unknown }>(request);
+    const oldName = boundedText(payload.oldName, "原画布名称", 80, true);
+    const name = boundedText(payload.name, "画布名称", 80, true);
+    const db = getDb();
+    const [existing] = await db.select({ id: readingCanvases.id }).from(readingCanvases)
+      .where(and(eq(readingCanvases.ownerId, user.id), eq(readingCanvases.tag, oldName))).limit(1);
+    if (!existing) throw new ApiError(404, "画布不存在，请重新打开");
+    if (name !== oldName) {
+      const [duplicate] = await db.select({ id: readingCanvases.id }).from(readingCanvases)
+        .where(and(eq(readingCanvases.ownerId, user.id), eq(readingCanvases.tag, name))).limit(1);
+      if (duplicate) throw new ApiError(409, "已有同名画布，请换一个名称");
+      try {
+        await db.update(readingCanvases).set({ tag: name, updatedAt: new Date() })
+          .where(and(eq(readingCanvases.ownerId, user.id), eq(readingCanvases.id, existing.id)));
+      } catch (error) {
+        if (String(error).includes("UNIQUE")) throw new ApiError(409, "已有同名画布，请换一个名称");
+        throw error;
+      }
+    }
+    return Response.json({ name });
+  } catch (error) { return apiError(error); }
+}
+
 export async function POST(request: Request) {
   try {
     const user = await requireApiUser(request, { mutation: true });

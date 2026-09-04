@@ -378,3 +378,13 @@ body.canvas-open{overflow:hidden}.inspiration-canvas{position:fixed;z-index:40;i
 .intended-use-picker>div{display:flex;flex-wrap:wrap;gap:7px;padding:9px;border:1.5px solid #b6a38e;border-radius:7px;background:#f6efe3}
 .intended-use-picker button{border:1px solid #c49a7f;border-radius:999px;padding:7px 10px;background:#f8ead8;color:#79533f;font-size:10px;cursor:pointer}
 .intended-use-picker button.active{border-color:#593426;background:#b8653d;color:#fff8ed;box-shadow:2px 2px 0 rgba(68,41,29,.2)}
+/* Inline canvas renaming keeps the existing warm toolbar compact. */
+.canvas-rename-busy { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; background: #fff8eacc; font-size: 18px; }
+.canvas-name { min-width: 160px; max-width: 360px; }
+.canvas-name h2 { display: flex; align-items: center; gap: 10px; }
+.canvas-name h2 span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.canvas-name h2 button { border: 0; background: transparent; color: var(--terracotta, #b76238); padding: 4px; font-size: 22px; cursor: pointer; }
+.canvas-name form { display: flex; gap: 6px; align-items: center; }
+.canvas-name input { width: 160px; min-width: 0; padding: 8px; font-size: 16px; }
+.canvas-name form button { padding: 8px; white-space: nowrap; font-size: 14px; }
+.canvas-name p[role=alert] { display: block; color: #a22f24; font-size: 14px; margin: 4px 0 0; }

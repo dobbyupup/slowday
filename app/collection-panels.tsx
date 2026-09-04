@@ -187,12 +187,13 @@ type ReadingProps = {
   onLoadCanvas: (tag: string) => Promise<ReadingCanvasLayout>;
   onListCanvases: () => Promise<{ name: string }[]>;
   onCreateCanvas: (name: string) => Promise<void>;
+  onRenameCanvas: (oldName: string, name: string) => Promise<void>;
   onSaveCanvas: (tag: string, layout: ReadingCanvasLayout) => Promise<void>;
   onConfirm: (item: ReadingItem) => Promise<void>;
   onImportMedia: (files: File[], message: string) => Promise<{ items: ReadingItem[]; interpretedCount?: number }>;
 };
 
-export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, onAdd, onEdit, onDelete, onReanalyze, milestones, onConvert, onLoadCanvas, onSaveCanvas, onListCanvases, onCreateCanvas, onConfirm, onImportMedia }: ReadingProps) {
+export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, onAdd, onEdit, onDelete, onReanalyze, milestones, onConvert, onLoadCanvas, onSaveCanvas, onListCanvases, onCreateCanvas, onRenameCanvas, onConfirm, onImportMedia }: ReadingProps) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "followup" | "untracked">("all");
   const [workflowFilter, setWorkflowFilter] = useState<"all" | "pending" | "confirmed">("all");
@@ -290,12 +291,16 @@ export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, o
         <footer>{safeReadingLink(selectedItem.url) && <a href={safeReadingLink(selectedItem.url)} target="_blank" rel="noreferrer">查看原文 ↗</a>}<div><button onClick={() => { setSelectedId(null); onEdit(selectedItem); }}>编辑</button><button className="promote" disabled={trackedIds.has(selectedItem.id)} onClick={() => void onConvert(selectedItem)}>{trackedIds.has(selectedItem.id) ? "已收录跟进" : "收录跟进"}</button><button onClick={() => { setSelectedId(null); onDelete(selectedItem); }}>删除</button></div></footer>
       </div>
     </aside></div>}
-    {canvasTag && <InspirationCanvas tag={canvasTag} items={items} onClose={() => setCanvasTag("")} onLoad={onLoadCanvas} onSave={onSaveCanvas} onImportMedia={onImportMedia} />}
+    {canvasTag && <InspirationCanvas onRename={async name => { await onRenameCanvas(canvasTag, name); setCanvasNames(current => current.map(value => value === canvasTag ? name : value)); setCanvasTag(name); }} tag={canvasTag} items={items} onClose={() => setCanvasTag("")} onLoad={onLoadCanvas} onSave={onSaveCanvas} onImportMedia={onImportMedia} />}
   </section>;
 }
 
-function InspirationCanvas({ tag, items, onClose, onLoad, onSave, onImportMedia }: { tag: string; items: ReadingItem[]; onClose: () => void; onLoad: (tag: string) => Promise<ReadingCanvasLayout>; onSave: (tag: string, layout: ReadingCanvasLayout) => Promise<void>; onImportMedia: (files: File[], message: string) => Promise<{ items: ReadingItem[]; interpretedCount?: number }> }) {
+function InspirationCanvas({ tag, onRename, items, onClose, onLoad, onSave, onImportMedia }: { tag: string; onRename: (name: string) => Promise<void>; items: ReadingItem[]; onClose: () => void; onLoad: (tag: string) => Promise<ReadingCanvasLayout>; onSave: (tag: string, layout: ReadingCanvasLayout) => Promise<void>; onImportMedia: (files: File[], message: string) => Promise<{ items: ReadingItem[]; interpretedCount?: number }> }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(tag);
+  const [renaming, setRenaming] = useState(false);
+  const [nameError, setNameError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nodesRef = useRef<ReadingCanvasLayout["nodes"]>([]);
   const edgesRef = useRef<ReadingCanvasLayout["edges"]>([]);
@@ -304,6 +309,7 @@ function InspirationCanvas({ tag, items, onClose, onLoad, onSave, onImportMedia 
   const excludedItemIdsRef = useRef<number[]>([]);
   const dragRef = useRef<null | { type: "node" | "note" | "group" | "resize" | "pan"; pointerId: number; id?: number | string; startX: number; startY: number; originX: number; originY: number; originWidth?: number; originHeight?: number; memberOrigins?: Array<{ readingItemId: number; x: number; y: number }> }>(null);
   const saveTimerRef = useRef<number | null>(null);
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
   const [canvasItems, setCanvasItems] = useState<ReadingItem[]>([]);
   const [nodes, setNodes] = useState<ReadingCanvasLayout["nodes"]>([]);
   const [edges, setEdges] = useState<ReadingCanvasLayout["edges"]>([]);
@@ -344,10 +350,31 @@ function InspirationCanvas({ tag, items, onClose, onLoad, onSave, onImportMedia 
     nodesRef.current = nextNodes; edgesRef.current = nextEdges; notesRef.current = nextNotes; groupsRef.current = nextGroups; excludedItemIdsRef.current = nextExcludedItemIds;
     if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     setSaveState("saving");
-    saveTimerRef.current = window.setTimeout(() => { void onSave(tag, { nodes: nextNodes, edges: nextEdges, notes: nextNotes, groups: nextGroups, excludedItemIds: nextExcludedItemIds }).then(() => setSaveState("saved")).catch(() => setSaveState("error")); }, 450);
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null;
+      saveChainRef.current = saveChainRef.current.catch(() => {}).then(() => onSave(tag, { nodes: nextNodes, edges: nextEdges, notes: nextNotes, groups: nextGroups, excludedItemIds: nextExcludedItemIds }));
+      void saveChainRef.current.then(() => setSaveState("saved")).catch(() => setSaveState("error"));
+    }, 450);
+  }
+
+  async function renameCanvas() {
+    const name = nameDraft.trim();
+    if (!name) { setNameError("请输入画布名称"); return; }
+    if (renaming || saveState === "saving" || importing) return;
+    if (name === tag) { setEditingName(false); return; }
+    setRenaming(true); setNameError("");
+    try {
+      if (saveTimerRef.current) { window.clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+      await saveChainRef.current;
+      await onSave(tag, { nodes: nodesRef.current, edges: edgesRef.current, notes: notesRef.current, groups: groupsRef.current, excludedItemIds: excludedItemIdsRef.current });
+      await onRename(name);
+      setEditingName(false);
+    } catch (error) { setNameError(error instanceof Error ? error.message : "修改失败，请重试"); }
+    finally { setRenaming(false); }
   }
 
   async function closeCanvas() {
+    if (renaming) return;
     if (saveTimerRef.current) {
       window.clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
@@ -459,7 +486,8 @@ function InspirationCanvas({ tag, items, onClose, onLoad, onSave, onImportMedia 
   const nodeById = new Map(nodes.map(node => [node.readingItemId, node]));
   return <div className={`inspiration-canvas ${dropActive ? "drop-active" : ""}`} role="dialog" aria-modal="true" aria-label={`${tag}灵感画布`} ref={rootRef} onPointerDown={beginPan} onPointerMove={movePointer} onPointerUp={endPointer} onPointerCancel={endPointer} onWheel={zoomCanvas} onDragOver={event => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); setDropActive(true); } }} onDragLeave={event => { if (event.currentTarget === event.target) setDropActive(false); }} onDrop={event => { event.preventDefault(); void importFiles(Array.from(event.dataTransfer.files), event.clientX, event.clientY); }}>
     <header className="inspiration-canvas-toolbar">
-      <div><small>INSPIRATION CANVAS</small><h2><span>{tag}</span></h2></div>
+      {renaming && <div className="canvas-rename-busy" role="status">正在修改名称…</div>}
+      <div className="canvas-name"><small>INSPIRATION CANVAS</small>{editingName ? <form onSubmit={event => { event.preventDefault(); void renameCanvas(); }}><input aria-label="画布名称" autoFocus maxLength={80} value={nameDraft} disabled={renaming} onChange={event => setNameDraft(event.target.value)} onKeyDown={event => { event.stopPropagation(); if (event.key === "Escape" && !renaming) setEditingName(false); }} /><button disabled={renaming || saveState === "saving" || importing} type="submit">{renaming ? "保存中…" : "保存"}</button><button type="button" disabled={renaming} onClick={() => setEditingName(false)}>取消</button></form> : <h2><span>{tag}</span><button type="button" aria-label="修改画布名称" title="修改画布名称" disabled={loading || importing || saveState !== "saved"} onClick={() => { setNameDraft(tag); setNameError(""); setEditingName(true); }}>✎</button></h2>}{editingName && nameError && <p role="alert">{nameError}</p>}</div>
       <p>{linkingFrom === null ? "拖动卡片 · 选中后拖右下角调整大小 · Delete 删除 · 点击圆点连线" : "已选择起点，再点击另一张卡片的圆点完成连接"}</p>
       <div className="canvas-toolbar-actions"><select aria-label="从知识库添加资料" value="" disabled={loading || saveState === "error"} onChange={event => addLibraryItem(Number(event.target.value))}><option value="">＋ 知识库资料</option>{items.filter(item => !nodes.some(node => node.readingItemId === item.id)).map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select><span className={`canvas-save-state ${saveState}`}>{importing ? "图片导入中…" : saveState === "saving" ? "保存中…" : saveState === "error" ? "保存失败" : "已保存"}</span><button onClick={addGroup}>＋ 分组</button><button onClick={addNote}>＋ 文本</button><button onClick={() => fileInputRef.current?.click()}>＋ 图片</button><input ref={fileInputRef} className="canvas-file-input" type="file" accept="image/*" multiple onChange={event => { void importFiles(Array.from(event.target.files || [])); event.currentTarget.value = ""; }} /><button className="canvas-delete-selected" disabled={selectedNodeId === null} onClick={() => selectedNodeId !== null && deleteCanvasNode(selectedNodeId)}>删除所选</button><button onClick={() => setView({ x: 110, y: 90, scale: 1 })}>回到中心</button><button className="canvas-close" onClick={() => void closeCanvas()} aria-label="关闭灵感画布">×</button></div>
     </header>

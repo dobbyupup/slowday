@@ -441,7 +441,7 @@ test("reading tags have a durable migration", async () => {
   assert.match(migration, /ALTER TABLE `reading_items` ADD `tags` text DEFAULT '' NOT NULL/);
 });
 
-test("tag pills open a durable draggable inspiration canvas", async () => {
+test("named inspiration canvases are independent from tags", async () => {
   const [page, panels, css, schema, route, migration] = await Promise.all([
     read("../app/page.tsx"),
     read("../app/collection-panels.tsx"),
@@ -452,6 +452,12 @@ test("tag pills open a durable draggable inspiration canvas", async () => {
   ]);
   assert.match(panels, /InspirationCanvas/);
   assert.match(panels, /选择已有画布/);
+  assert.match(panels, /修改画布名称/);
+  assert.match(panels, /await saveChainRef.current/);
+  assert.match(page, /method: "PATCH", body: JSON.stringify\(\{ oldName, name \}\)/);
+  assert.match(route, /export async function PATCH/);
+  assert.match(route, /已有同名画布/);
+  assert.match(route, /set\(\{ tag: name, updatedAt: new Date\(\) \}\)/);
   assert.match(panels, /新建画布/);
   assert.match(panels, /从知识库添加资料/);
   assert.doesNotMatch(panels, /setCanvasTag\(tag\)/);
