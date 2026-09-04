@@ -29,10 +29,10 @@ export async function GET(request: Request) {
     const [[profile], history, knowledge] = await Promise.all([
       db.select().from(brandProfiles).where(eq(brandProfiles.ownerId, user.id)).limit(1),
       db.select().from(brandProfileVersions).where(eq(brandProfileVersions.ownerId, user.id)).orderBy(desc(brandProfileVersions.version)).limit(20),
-      db.select({ id: readingItems.id, updatedAt: readingItems.updatedAt }).from(readingItems).where(eq(readingItems.ownerId, user.id)),
+      db.select({ id: readingItems.id, updatedAt: readingItems.updatedAt }).from(readingItems).where(and(eq(readingItems.ownerId, user.id), eq(readingItems.importOrigin, "knowledge"))),
     ]);
     const newKnowledgeCount = profile
-      ? (await db.select({ id: readingItems.id }).from(readingItems).where(and(eq(readingItems.ownerId, user.id), gt(readingItems.updatedAt, profile.updatedAt)))).length
+      ? (await db.select({ id: readingItems.id }).from(readingItems).where(and(eq(readingItems.ownerId, user.id), eq(readingItems.importOrigin, "knowledge"), gt(readingItems.updatedAt, profile.updatedAt)))).length
       : knowledge.length;
     return Response.json({
       profile: publicProfile(profile),

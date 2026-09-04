@@ -1,7 +1,7 @@
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { readingCanvases, readingItems } from "../../../../db/schema";
-import { apiError, ApiError, boundedText, readJson, requireApiUser } from "../../_shared";
+import { apiError, ApiError, boundedText, publicReading, readJson, requireApiUser } from "../../_shared";
 
 type CanvasNode = { readingItemId: number; x: number; y: number; width?: number; height?: number; groupId?: string };
 type CanvasEdge = { from: number; to: number; fromSide?: "left" | "right"; toSide?: "left" | "right" };
@@ -22,7 +22,11 @@ export async function GET(request: Request) {
     const tag = boundedText(params.get("tag"), "画布名称", 80, true);
     const [row] = await getDb().select({ layout: readingCanvases.layout }).from(readingCanvases)
       .where(and(eq(readingCanvases.ownerId, user.id), eq(readingCanvases.tag, tag))).limit(1);
-    return Response.json({ layout: row ? parseStoredLayout(row.layout) : emptyLayout() }, { headers: { "Cache-Control": "no-store" } });
+    const layout = row ? parseStoredLayout(row.layout) : emptyLayout();
+    const ids = layout.nodes.map(node => node.readingItemId);
+    const items = ids.length ? await getDb().select().from(readingItems)
+      .where(and(eq(readingItems.ownerId, user.id), inArray(readingItems.id, ids))) : [];
+    return Response.json({ layout, items: items.map(publicReading) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return apiError(error); }
 }
 

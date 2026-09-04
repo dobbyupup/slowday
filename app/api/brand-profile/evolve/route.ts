@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { aiConfigs, brandProfiles, readingItems } from "../../../../db/schema";
 import { apiError, ApiError, enforceRateLimit, requireSessionUser, sha256 } from "../../_shared";
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     const db = getDb();
     const [[profile], items, [config]] = await Promise.all([
       db.select().from(brandProfiles).where(eq(brandProfiles.ownerId, user.id)).limit(1),
-      db.select().from(readingItems).where(eq(readingItems.ownerId, user.id)).orderBy(desc(readingItems.updatedAt), desc(readingItems.id)).limit(80),
+      db.select().from(readingItems).where(and(eq(readingItems.ownerId, user.id), eq(readingItems.importOrigin, "knowledge"))).orderBy(desc(readingItems.updatedAt), desc(readingItems.id)).limit(80),
       db.select().from(aiConfigs).where(eq(aiConfigs.ownerId, user.id)).limit(1),
     ]);
     if (!profile) throw new ApiError(400, "请先填写第一版品牌档案，再让知识库推动它迭代");

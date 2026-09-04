@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { aiConfigs, brandProfiles, readingItems } from "../../../../db/schema";
 import { apiError, ApiError, enforceRateLimit, requireSessionUser, sha256 } from "../../_shared";
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     await enforceRateLimit(`reading-summary:${user.id}`, 6);
     const db = getDb();
     const [items, configs, profiles] = await Promise.all([
-      db.select().from(readingItems).where(eq(readingItems.ownerId, user.id)).orderBy(desc(readingItems.date), desc(readingItems.id)).limit(200),
+      db.select().from(readingItems).where(and(eq(readingItems.ownerId, user.id), eq(readingItems.importOrigin, "knowledge"))).orderBy(desc(readingItems.date), desc(readingItems.id)).limit(200),
       db.select().from(aiConfigs).where(eq(aiConfigs.ownerId, user.id)).limit(1),
       db.select().from(brandProfiles).where(eq(brandProfiles.ownerId, user.id)).limit(1),
     ]);

@@ -106,6 +106,7 @@ export const sessions = sqliteTable("sessions", {
 
 export const readingItems = sqliteTable("reading_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  importOrigin: text("import_origin", { enum: ["knowledge", "canvas"] }).notNull().default("knowledge"),
   ownerId: text("owner_id").notNull(),
   ownerEmail: text("owner_email").notNull(),
   date: text("date").notNull(),

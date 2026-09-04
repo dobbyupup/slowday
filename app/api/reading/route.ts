@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { readingItems } from "../../../db/schema";
 import { apiError, ApiError, boundedText, publicReading, readJson, requireApiUser, validDate } from "../_shared";
@@ -6,7 +6,7 @@ import { apiError, ApiError, boundedText, publicReading, readJson, requireApiUse
 export async function GET(request: Request) {
   try {
     const user = await requireApiUser(request);
-    const rows = await getDb().select().from(readingItems).where(eq(readingItems.ownerId, user.id)).orderBy(desc(readingItems.date), desc(readingItems.id)).limit(1000);
+    const rows = await getDb().select().from(readingItems).where(and(eq(readingItems.ownerId, user.id), eq(readingItems.importOrigin, "knowledge"))).orderBy(desc(readingItems.date), desc(readingItems.id)).limit(1000);
     return Response.json({ items: rows.map(publicReading) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return apiError(error); }
 }

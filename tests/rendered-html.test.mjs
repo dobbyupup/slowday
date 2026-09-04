@@ -441,6 +441,21 @@ test("reading tags have a durable migration", async () => {
   assert.match(migration, /ALTER TABLE `reading_items` ADD `tags` text DEFAULT '' NOT NULL/);
 });
 
+test("canvas uploads stay out of the knowledge library and reload from the canvas", async () => {
+  const [page, panels, upload, listing, canvas, migration] = await Promise.all([
+    read("../app/page.tsx"), read("../app/collection-panels.tsx"),
+    read("../app/api/reading/import-media/route.ts"), read("../app/api/reading/route.ts"),
+    read("../app/api/reading/canvas/route.ts"), read("../drizzle/0015_colorful_azazel.sql"),
+  ]);
+  assert.match(page, /importReadingMedia\(files, message, "canvas"\)/);
+  assert.match(page, /if \(origin === "knowledge"\) setReadingItems/);
+  assert.match(upload, /form.get\("origin"\) === "canvas"/);
+  assert.match(listing, /eq\(readingItems.importOrigin, "knowledge"\)/);
+  assert.match(canvas, /items: items.map\(publicReading\)/);
+  assert.match(panels, /layout.items \?\? items/);
+  assert.match(migration, /import_origin.*DEFAULT 'knowledge' NOT NULL/);
+});
+
 test("named inspiration canvases are independent from tags", async () => {
   const [page, panels, css, schema, route, migration] = await Promise.all([
     read("../app/page.tsx"),

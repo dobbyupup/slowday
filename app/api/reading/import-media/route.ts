@@ -17,6 +17,7 @@ export async function POST(request: Request) {
     const declared = Number(request.headers.get("content-length") ?? 0);
     if (declared > MAX_REQUEST_BYTES) throw new ApiError(413, "附件总大小不能超过 20MB");
     const form = await request.formData();
+    const importOrigin = form.get("origin") === "canvas" ? "canvas" : "knowledge";
     const files = form.getAll("files").filter((value): value is File => value instanceof File);
     if (!files.length) throw new ApiError(400, "请选择或粘贴图片");
     if (files.length > MAX_FILES) throw new ApiError(400, `一次最多添加 ${MAX_FILES} 张图片`);
@@ -43,12 +44,13 @@ export async function POST(request: Request) {
     for (const [index, preparedFile] of prepared.entries()) {
       const { file, bytes } = preparedFile;
       const contentHash = await digestBytes(bytes);
-      const [duplicate] = await db.select({ id: readingItems.id }).from(readingItems).where(and(eq(readingItems.ownerId, user.id), eq(readingItems.contentHash, contentHash))).limit(1);
+      const [duplicate] = await db.select({ id: readingItems.id }).from(readingItems).where(and(eq(readingItems.ownerId, user.id), eq(readingItems.importOrigin, importOrigin), eq(readingItems.contentHash, contentHash))).limit(1);
       const key = crypto.randomUUID();
       await bucket.put(key, bytes, { httpMetadata: { contentType: file.type }, customMetadata: { ownerId: user.id, originalName: file.name.slice(0, 180) } });
       uploadedKeys.push(key);
       const interpretation = interpretations[index]!;
       values.push({
+        importOrigin,
         ownerId: user.id,
         ownerEmail: user.email,
         date: todayInTimeZone(),

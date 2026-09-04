@@ -813,7 +813,7 @@ export default function Home() {
     return result;
   }
 
-  async function importReadingMedia(files: File[], message: string) {
+  async function importReadingMedia(files: File[], message: string, origin: "knowledge" | "canvas" = "knowledge") {
     const imported: ReadingItem[] = [];
     let interpretedCount = 0;
     for (const file of files) {
@@ -832,6 +832,7 @@ export default function Home() {
       for (let attempt = 0; attempt < 2; attempt += 1) {
         const form = new FormData();
         form.append("files", upload);
+        form.append("origin", origin);
         if (message) form.append("message", message);
         const controller = new AbortController();
         const timeout = window.setTimeout(() => controller.abort(), 75_000);
@@ -847,7 +848,7 @@ export default function Home() {
           if (!response.ok || !result.items) throw new Error(result.error || (response.status === 413 ? "图片自动压缩后仍未上传成功，请换一张图片再试" : `图片保存失败（${response.status || "网络异常"}）`));
           imported.push(...result.items);
           interpretedCount += result.interpretedCount ?? 0;
-          setReadingItems(prev => [...result.items!, ...prev]);
+          if (origin === "knowledge") setReadingItems(prev => [...result.items!, ...prev]);
           break;
         } catch (error) {
           if (error instanceof DOMException && error.name === "AbortError") throw new Error("图片自动识别超过 75 秒，请重试或换一张图片");
@@ -978,8 +979,8 @@ export default function Home() {
   }
 
   async function loadReadingCanvas(tag: string) {
-    const result = await api<{ layout: ReadingCanvasLayout }>(`/api/reading/canvas?tag=${encodeURIComponent(tag)}`);
-    return result.layout;
+    const result = await api<{ layout: ReadingCanvasLayout; items: ReadingItem[] }>(`/api/reading/canvas?tag=${encodeURIComponent(tag)}`);
+    return { ...result.layout, items: result.items };
   }
 
   async function listReadingCanvases() {
@@ -1135,7 +1136,7 @@ export default function Home() {
         ) : view === "followup" ? (
           <FollowUpPage milestones={brandMilestones} readings={readingItems} onUpdate={updateMilestone} onDelete={deleteMilestone} onEditReading={editReading} />
         ) : view === "reading" ? (
-          <ReadingTimeline items={readingItems} milestones={brandMilestones} summary={readingSummary} summaryLoading={readingSummaryLoading} onSummarize={() => void summarizeReading()} onAdd={newReading} onEdit={editReading} onDelete={item => void deleteReading(item)} onReanalyze={reanalyzeReading} onConvert={convertReadingToMilestone} onLoadCanvas={loadReadingCanvas} onSaveCanvas={saveReadingCanvas} onListCanvases={listReadingCanvases} onCreateCanvas={createReadingCanvas} onRenameCanvas={renameReadingCanvas} onUpdateCanvasText={updateCanvasText} onConfirm={confirmReading} onImportMedia={importReadingMedia} />
+          <ReadingTimeline items={readingItems} milestones={brandMilestones} summary={readingSummary} summaryLoading={readingSummaryLoading} onSummarize={() => void summarizeReading()} onAdd={newReading} onEdit={editReading} onDelete={item => void deleteReading(item)} onReanalyze={reanalyzeReading} onConvert={convertReadingToMilestone} onLoadCanvas={loadReadingCanvas} onSaveCanvas={saveReadingCanvas} onListCanvases={listReadingCanvases} onCreateCanvas={createReadingCanvas} onRenameCanvas={renameReadingCanvas} onUpdateCanvasText={updateCanvasText} onConfirm={confirmReading} onImportMedia={(files, message) => importReadingMedia(files, message, "canvas")} />
         ) : (
           <section className="review-panel">
             <button className="back-link" onClick={() => setView("overview")}>← 返回复盘总览</button>

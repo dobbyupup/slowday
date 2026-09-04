@@ -28,6 +28,7 @@ export type BrandProfile = { story: string; philosophy: string; audience: string
 export type BrandProfileVersion = { id: number; version: number; snapshot: BrandProfile; changeNote: string; createdAt: string };
 
 export type ReadingCanvasLayout = {
+  items?: ReadingItem[];
   nodes: Array<{ readingItemId: number; x: number; y: number; width?: number; height?: number; groupId?: string }>;
   edges: Array<{ from: number; to: number; fromSide?: "left" | "right"; toSide?: "left" | "right" }>;
   notes: Array<{ id: string; x: number; y: number; text: string }>;
@@ -331,7 +332,7 @@ function InspirationCanvas({ tag, onUpdateText, onRename, items, onClose, onLoad
       if (!active) return;
       const stored = new Map(layout.nodes.map(node => [node.readingItemId, node]));
       const excludedItemIds = layout.excludedItemIds || [];
-      const included = items.filter(item => stored.has(item.id));
+      const included = (layout.items ?? items).filter(item => stored.has(item.id));
       const nextNodes = included.map((item, index) => stored.get(item.id) ?? { readingItemId: item.id, x: (index % 4) * 280, y: Math.floor(index / 4) * 260 });
       const ids = new Set(nextNodes.map(node => node.readingItemId));
       const nextEdges = layout.edges.filter(edge => ids.has(edge.from) && ids.has(edge.to));

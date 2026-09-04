@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const db = getDb();
     const [dailyTasks, dailyReading, reviewRows, configRows] = await Promise.all([
       db.select().from(tasks).where(and(eq(tasks.ownerId, user.id), eq(tasks.date, date))).limit(200),
-      db.select().from(readingItems).where(and(eq(readingItems.ownerId, user.id), eq(readingItems.date, date))).limit(100),
+      db.select().from(readingItems).where(and(eq(readingItems.ownerId, user.id), eq(readingItems.importOrigin, "knowledge"), eq(readingItems.date, date))).limit(100),
       db.select().from(reviews).where(and(eq(reviews.ownerId, user.id), eq(reviews.date, date))).limit(1),
       db.select().from(aiConfigs).where(eq(aiConfigs.ownerId, user.id)).limit(1),
     ]);
