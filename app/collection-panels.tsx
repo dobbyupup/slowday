@@ -185,12 +185,14 @@ type ReadingProps = {
   milestones: BrandMilestone[];
   onConvert: (item: ReadingItem) => Promise<void>;
   onLoadCanvas: (tag: string) => Promise<ReadingCanvasLayout>;
+  onListCanvases: () => Promise<{ name: string }[]>;
+  onCreateCanvas: (name: string) => Promise<void>;
   onSaveCanvas: (tag: string, layout: ReadingCanvasLayout) => Promise<void>;
   onConfirm: (item: ReadingItem) => Promise<void>;
   onImportMedia: (files: File[], message: string) => Promise<{ items: ReadingItem[]; interpretedCount?: number }>;
 };
 
-export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, onAdd, onEdit, onDelete, onReanalyze, milestones, onConvert, onLoadCanvas, onSaveCanvas, onConfirm, onImportMedia }: ReadingProps) {
+export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, onAdd, onEdit, onDelete, onReanalyze, milestones, onConvert, onLoadCanvas, onSaveCanvas, onListCanvases, onCreateCanvas, onConfirm, onImportMedia }: ReadingProps) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "followup" | "untracked">("all");
   const [workflowFilter, setWorkflowFilter] = useState<"all" | "pending" | "confirmed">("all");
@@ -198,6 +200,26 @@ export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, o
   const [layout, setLayout] = useState<"grid" | "timeline">("grid");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [canvasTag, setCanvasTag] = useState("");
+  const [canvasNames, setCanvasNames] = useState<string[]>([]);
+  const [newCanvasName, setNewCanvasName] = useState("");
+  const [canvasBusy, setCanvasBusy] = useState(false);
+  const [canvasError, setCanvasError] = useState("");
+  useEffect(() => {
+    let active = true;
+    void onListCanvases().then(rows => { if (active) setCanvasNames(rows.map(row => row.name)); }).catch(() => { if (active) setCanvasError("画布列表加载失败，请刷新重试"); });
+    return () => { active = false; };
+  }, []);
+  async function createCanvas() {
+    const name = newCanvasName.trim();
+    if (!name || canvasBusy) return;
+    setCanvasBusy(true); setCanvasError("");
+    try {
+      await onCreateCanvas(name);
+      setCanvasNames(current => current.includes(name) ? current : [name, ...current]);
+      setNewCanvasName(""); setCanvasTag(name);
+    } catch { setCanvasError("创建失败，请重试"); }
+    finally { setCanvasBusy(false); }
+  }
   const trackedIds = new Set(milestones.map(milestone => milestone.sourceReadingId).filter((id): id is number => Boolean(id)));
   const normalizedQuery = query.trim().toLocaleLowerCase("zh-CN");
   const filteredItems = items.filter(item => {
@@ -225,6 +247,12 @@ export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, o
     </header>
     <div className="reading-stats"><span><b>{items.length}</b> 条品牌资料</span><span><b>{items.filter(item => item.workflowStatus === "pending").length}</b> 条待整理</span><span><b>{trackedIds.size}</b> 条已收录跟进</span><i>资料先沉淀，再进入行动。</i><button className="reading-summary-trigger" onClick={onSummarize} disabled={!items.length || summaryLoading}>{summaryLoading ? "AI 正在整理…" : summary ? "重新总结" : "✦ AI 品牌洞察"}</button></div>
     {items.some(item => item.workflowStatus === "pending") && <section className="knowledge-inbox"><div><small>INBOX · 待整理</small><h2>系统已经整理，等待你的确认</h2><p>已自动识别资料类型、来源、主分类、细分标签、潜在用途与重复内容。</p></div><button onClick={() => void Promise.all(items.filter(item => item.workflowStatus === "pending").map(onConfirm))}>批量确认 {items.filter(item => item.workflowStatus === "pending").length} 条</button></section>}
+    <div className="canvas-library-controls">
+      <strong>灵感画布</strong>
+      <select aria-label="选择灵感画布" value="" onChange={event => setCanvasTag(event.target.value)}><option value="">选择已有画布</option>{canvasNames.map(name => <option key={name} value={name}>{name}</option>)}</select>
+      <form onSubmit={event => { event.preventDefault(); void createCanvas(); }}><input aria-label="新画布名称" placeholder="给新画布起个名字" maxLength={80} value={newCanvasName} onChange={event => setNewCanvasName(event.target.value)} /><button disabled={canvasBusy || !newCanvasName.trim()}>{canvasBusy ? "创建中…" : "＋ 新建画布"}</button></form>
+      {canvasError && <span role="alert">{canvasError}</span>}
+    </div>
     <div className="inspiration-toolbar">
       <label className="inspiration-search"><span aria-hidden="true">⌕</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索标题、品牌或中文解读" aria-label="搜索品牌灵感" /></label>
       <select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)} aria-label="按品牌主分类筛选"><option value="">全部分类</option>{["品牌定位", "视觉系统", "产品设计", "材质工艺", "包装", "摄影", "内容文案", "用户洞察"].map(category => <option key={category}>{category}</option>)}</select>
@@ -242,7 +270,7 @@ export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, o
       const focus = inspirationImageFocus(item);
       return <article className="inspiration-library-card" key={item.id}>
         <button type="button" className={`inspiration-card-image inspiration-card-preview ${focus.className}`} aria-label={`完整预览：${item.title}`} onClick={() => openDetails(item)}>{item.imageUrl ? <img src={item.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={event => { event.currentTarget.style.display = "none"; }} /> : <span>BRAND<br />REFERENCE</span>}{focus.label && <strong>{focus.label}</strong>}<i className={item.workflowStatus === "pending" ? "pending" : tracked ? "tracked" : ""}>{item.workflowStatus === "pending" ? "待整理" : tracked ? "已跟进" : "已归档"}</i></button>
-        <div className="inspiration-card-copy" tabIndex={0} role="button" aria-label={`编辑资料：${item.title}`} onClick={() => onEdit(item)} onKeyDown={event => handleCardKey(event, item)}><small>{item.source || "未标注来源"}<time dateTime={item.date}>{item.date.replaceAll("-", ".")}</time></small><div className="knowledge-classification"><b>{item.primaryCategory}</b><span>{item.resourceType}</span><span>用于：{item.intendedUse}</span>{item.duplicateOf && <em>与 #{item.duplicateOf} 重复</em>}</div><h2>{item.title}</h2><p>{formatReadingAnalysis(item.note) || "这条资料还没有中文解读。"}</p>{tags.length > 0 && <div className="reading-tags">{tags.slice(0, 4).map(tag => <button key={tag} title={`打开“${tag}”灵感画布`} onClick={event => { event.stopPropagation(); setCanvasTag(tag); }}>{tag}</button>)}</div>}{item.workflowStatus === "pending" && <button className="knowledge-confirm" onClick={event => { event.stopPropagation(); void onConfirm(item); }}>确认归档</button>}</div>
+        <div className="inspiration-card-copy" tabIndex={0} role="button" aria-label={`编辑资料：${item.title}`} onClick={() => onEdit(item)} onKeyDown={event => handleCardKey(event, item)}><small>{item.source || "未标注来源"}<time dateTime={item.date}>{item.date.replaceAll("-", ".")}</time></small><div className="knowledge-classification"><b>{item.primaryCategory}</b><span>{item.resourceType}</span><span>用于：{item.intendedUse}</span>{item.duplicateOf && <em>与 #{item.duplicateOf} 重复</em>}</div><h2>{item.title}</h2><p>{formatReadingAnalysis(item.note) || "这条资料还没有中文解读。"}</p>{tags.length > 0 && <div className="reading-tags">{tags.slice(0, 4).map(tag => <span key={tag}>{tag}</span>)}</div>}{item.workflowStatus === "pending" && <button className="knowledge-confirm" onClick={event => { event.stopPropagation(); void onConfirm(item); }}>确认归档</button>}</div>
       </article>;
     })}</div> : null}
     {filteredItems.length && layout === "timeline" ? <div className="reading-stream">{Object.entries(groups).sort(([first], [second]) => second.localeCompare(first)).map(([date, dayItems]) => <section className="reading-day" key={date}>
@@ -258,7 +286,7 @@ export function ReadingTimeline({ items, summary, summaryLoading, onSummarize, o
     {selectedItem && <div className="inspiration-detail-backdrop" onMouseDown={() => setSelectedId(null)}><aside className="inspiration-detail-drawer" role="dialog" aria-modal="true" aria-label={`资料完整预览：${selectedItem.title}`} onMouseDown={event => event.stopPropagation()}>
       <button className="inspiration-detail-close" onClick={() => setSelectedId(null)} aria-label="关闭完整预览">×</button>
       {selectedItem.imageUrl && <img className="inspiration-detail-image" src={selectedItem.imageUrl} alt="" referrerPolicy="no-referrer" />}
-      <div className="inspiration-detail-content"><small>{selectedItem.source || "未标注来源"}<time dateTime={selectedItem.date}>{selectedItem.date.replaceAll("-", ".")}</time></small><div className="knowledge-classification"><b>{selectedItem.primaryCategory}</b><span>{selectedItem.resourceType}</span><span>用于：{selectedItem.intendedUse}</span></div><h2>{selectedItem.title}</h2><p>{formatReadingAnalysis(selectedItem.note) || "这条资料还没有写下中文解读。"}</p>{readingTags(selectedItem.tags).length > 0 && <section><b>值得借鉴什么</b><div className="reading-tags">{readingTags(selectedItem.tags).map(tag => <button key={tag} title={`打开“${tag}”灵感画布`} onClick={() => { setSelectedId(null); setCanvasTag(tag); }}>{tag}</button>)}</div></section>}
+      <div className="inspiration-detail-content"><small>{selectedItem.source || "未标注来源"}<time dateTime={selectedItem.date}>{selectedItem.date.replaceAll("-", ".")}</time></small><div className="knowledge-classification"><b>{selectedItem.primaryCategory}</b><span>{selectedItem.resourceType}</span><span>用于：{selectedItem.intendedUse}</span></div><h2>{selectedItem.title}</h2><p>{formatReadingAnalysis(selectedItem.note) || "这条资料还没有写下中文解读。"}</p>{readingTags(selectedItem.tags).length > 0 && <section><b>值得借鉴什么</b><div className="reading-tags">{readingTags(selectedItem.tags).map(tag => <span key={tag}>{tag}</span>)}</div></section>}
         <footer>{safeReadingLink(selectedItem.url) && <a href={safeReadingLink(selectedItem.url)} target="_blank" rel="noreferrer">查看原文 ↗</a>}<div><button onClick={() => { setSelectedId(null); onEdit(selectedItem); }}>编辑</button><button className="promote" disabled={trackedIds.has(selectedItem.id)} onClick={() => void onConvert(selectedItem)}>{trackedIds.has(selectedItem.id) ? "已收录跟进" : "收录跟进"}</button><button onClick={() => { setSelectedId(null); onDelete(selectedItem); }}>删除</button></div></footer>
       </div>
     </aside></div>}
@@ -296,8 +324,7 @@ function InspirationCanvas({ tag, items, onClose, onLoad, onSave, onImportMedia 
       if (!active) return;
       const stored = new Map(layout.nodes.map(node => [node.readingItemId, node]));
       const excludedItemIds = layout.excludedItemIds || [];
-      const excluded = new Set(excludedItemIds);
-      const included = items.filter(item => stored.has(item.id) || (readingTags(item.tags).includes(tag) && !excluded.has(item.id)));
+      const included = items.filter(item => stored.has(item.id));
       const nextNodes = included.map((item, index) => stored.get(item.id) ?? { readingItemId: item.id, x: (index % 4) * 280, y: Math.floor(index / 4) * 260 });
       const ids = new Set(nextNodes.map(node => node.readingItemId));
       const nextEdges = layout.edges.filter(edge => ids.has(edge.from) && ids.has(edge.to));
@@ -309,7 +336,7 @@ function InspirationCanvas({ tag, items, onClose, onLoad, onSave, onImportMedia 
     }).catch(() => { if (active) { setLoading(false); setSaveState("error"); } });
     document.body.classList.add("canvas-open");
     return () => { active = false; document.body.classList.remove("canvas-open"); if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current); };
-    // A tag change creates a distinct saved board.
+    // Only explicitly selected saved nodes belong to a named board.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tag]);
 
@@ -320,12 +347,30 @@ function InspirationCanvas({ tag, items, onClose, onLoad, onSave, onImportMedia 
     saveTimerRef.current = window.setTimeout(() => { void onSave(tag, { nodes: nextNodes, edges: nextEdges, notes: nextNotes, groups: nextGroups, excludedItemIds: nextExcludedItemIds }).then(() => setSaveState("saved")).catch(() => setSaveState("error")); }, 450);
   }
 
+  async function closeCanvas() {
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+      try { await onSave(tag, { nodes: nodesRef.current, edges: edgesRef.current, notes: notesRef.current, groups: groupsRef.current, excludedItemIds: excludedItemIdsRef.current }); }
+      catch { setSaveState("error"); return; }
+    }
+    onClose();
+  }
+
   function beginMove(event: ReactPointerEvent<HTMLElement>, type: "node" | "note" | "group", id: number | string, x: number, y: number) {
     if ((event.target as HTMLElement).closest("button,textarea,input")) return;
     if (type === "node") setSelectedNodeId(Number(id));
     event.stopPropagation(); rootRef.current?.setPointerCapture(event.pointerId);
     dragRef.current = { type, pointerId: event.pointerId, id, startX: event.clientX, startY: event.clientY, originX: x, originY: y, ...(type === "group" ? { memberOrigins: nodesRef.current.filter(node => node.groupId === id).map(node => ({ readingItemId: node.readingItemId, x: node.x, y: node.y })) } : {}) };
   }
+  function addLibraryItem(id: number) {
+    const item = items.find(entry => entry.id === id);
+    if (!item || nodesRef.current.some(node => node.readingItemId === id) || nodesRef.current.length >= 200) return;
+    const nextNodes = [...nodesRef.current, { readingItemId: id, x: (160 - view.x) / view.scale, y: (160 - view.y) / view.scale }];
+    setCanvasItems(current => [...current, item]); setNodes(nextNodes);
+    queueSave(nextNodes, edgesRef.current, notesRef.current, groupsRef.current, excludedItemIdsRef.current.filter(value => value !== id));
+  }
+
   function beginResize(event: ReactPointerEvent<HTMLButtonElement>, node: ReadingCanvasLayout["nodes"][number]) {
     event.preventDefault(); event.stopPropagation(); setSelectedNodeId(node.readingItemId); rootRef.current?.setPointerCapture(event.pointerId);
     dragRef.current = { type: "resize", pointerId: event.pointerId, id: node.readingItemId, startX: event.clientX, startY: event.clientY, originX: node.x, originY: node.y, originWidth: node.width ?? 240, originHeight: node.height ?? 204 };
@@ -414,9 +459,9 @@ function InspirationCanvas({ tag, items, onClose, onLoad, onSave, onImportMedia 
   const nodeById = new Map(nodes.map(node => [node.readingItemId, node]));
   return <div className={`inspiration-canvas ${dropActive ? "drop-active" : ""}`} role="dialog" aria-modal="true" aria-label={`${tag}灵感画布`} ref={rootRef} onPointerDown={beginPan} onPointerMove={movePointer} onPointerUp={endPointer} onPointerCancel={endPointer} onWheel={zoomCanvas} onDragOver={event => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); setDropActive(true); } }} onDragLeave={event => { if (event.currentTarget === event.target) setDropActive(false); }} onDrop={event => { event.preventDefault(); void importFiles(Array.from(event.dataTransfer.files), event.clientX, event.clientY); }}>
     <header className="inspiration-canvas-toolbar">
-      <div><small>INSPIRATION CANVAS</small><h2><span>#{tag}</span> 灵感画布</h2></div>
+      <div><small>INSPIRATION CANVAS</small><h2><span>{tag}</span></h2></div>
       <p>{linkingFrom === null ? "拖动卡片 · 选中后拖右下角调整大小 · Delete 删除 · 点击圆点连线" : "已选择起点，再点击另一张卡片的圆点完成连接"}</p>
-      <div className="canvas-toolbar-actions"><span className={`canvas-save-state ${saveState}`}>{importing ? "图片导入中…" : saveState === "saving" ? "保存中…" : saveState === "error" ? "保存失败" : "已保存"}</span><button onClick={addGroup}>＋ 分组</button><button onClick={addNote}>＋ 文本</button><button onClick={() => fileInputRef.current?.click()}>＋ 图片</button><input ref={fileInputRef} className="canvas-file-input" type="file" accept="image/*" multiple onChange={event => { void importFiles(Array.from(event.target.files || [])); event.currentTarget.value = ""; }} /><button className="canvas-delete-selected" disabled={selectedNodeId === null} onClick={() => selectedNodeId !== null && deleteCanvasNode(selectedNodeId)}>删除所选</button><button onClick={() => setView({ x: 110, y: 90, scale: 1 })}>回到中心</button><button className="canvas-close" onClick={onClose} aria-label="关闭灵感画布">×</button></div>
+      <div className="canvas-toolbar-actions"><select aria-label="从知识库添加资料" value="" disabled={loading || saveState === "error"} onChange={event => addLibraryItem(Number(event.target.value))}><option value="">＋ 知识库资料</option>{items.filter(item => !nodes.some(node => node.readingItemId === item.id)).map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select><span className={`canvas-save-state ${saveState}`}>{importing ? "图片导入中…" : saveState === "saving" ? "保存中…" : saveState === "error" ? "保存失败" : "已保存"}</span><button onClick={addGroup}>＋ 分组</button><button onClick={addNote}>＋ 文本</button><button onClick={() => fileInputRef.current?.click()}>＋ 图片</button><input ref={fileInputRef} className="canvas-file-input" type="file" accept="image/*" multiple onChange={event => { void importFiles(Array.from(event.target.files || [])); event.currentTarget.value = ""; }} /><button className="canvas-delete-selected" disabled={selectedNodeId === null} onClick={() => selectedNodeId !== null && deleteCanvasNode(selectedNodeId)}>删除所选</button><button onClick={() => setView({ x: 110, y: 90, scale: 1 })}>回到中心</button><button className="canvas-close" onClick={() => void closeCanvas()} aria-label="关闭灵感画布">×</button></div>
     </header>
     {loading ? <div className="canvas-loading">正在展开这组灵感…</div> : <div className="inspiration-canvas-world" style={{ transform: `translate(${view.x}px,${view.y}px) scale(${view.scale})` }}>
       {groups.map(group => <section className={`canvas-group ${dropGroupId === group.id ? "drop-target" : ""}`} key={group.id} style={{ transform: `translate(${group.x}px,${group.y}px)`, width: group.width, height: group.height }} onPointerDown={event => beginMove(event, "group", group.id, group.x, group.y)}><header><input value={group.title} onChange={event => { const next = groupsRef.current.map(item => item.id === group.id ? { ...item, title: event.target.value } : item); groupsRef.current = next; setGroups(next); }} onBlur={() => queueSave()} aria-label="编辑分组名称" /><button onClick={() => { const nextGroups = groupsRef.current.filter(item => item.id !== group.id); const nextNodes = nodesRef.current.map(node => node.groupId === group.id ? { ...node, groupId: undefined } : node); setGroups(nextGroups); setNodes(nextNodes); queueSave(nextNodes, edgesRef.current, notesRef.current, nextGroups); }} aria-label="删除分组">×</button></header></section>)}

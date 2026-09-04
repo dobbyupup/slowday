@@ -1,4 +1,4 @@
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, desc } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { readingCanvases, readingItems } from "../../../../db/schema";
 import { apiError, ApiError, boundedText, readJson, requireApiUser } from "../../_shared";
@@ -13,7 +13,13 @@ const emptyLayout = (): CanvasLayout => ({ nodes: [], edges: [], notes: [], grou
 export async function GET(request: Request) {
   try {
     const user = await requireApiUser(request);
-    const tag = boundedText(new URL(request.url).searchParams.get("tag"), "标签", 80, true);
+    const params = new URL(request.url).searchParams;
+    if (!params.has("tag")) {
+      const canvases = await getDb().select({ name: readingCanvases.tag }).from(readingCanvases)
+        .where(eq(readingCanvases.ownerId, user.id)).orderBy(desc(readingCanvases.updatedAt));
+      return Response.json({ canvases }, { headers: { "Cache-Control": "no-store" } });
+    }
+    const tag = boundedText(params.get("tag"), "画布名称", 80, true);
     const [row] = await getDb().select({ layout: readingCanvases.layout }).from(readingCanvases)
       .where(and(eq(readingCanvases.ownerId, user.id), eq(readingCanvases.tag, tag))).limit(1);
     return Response.json({ layout: row ? parseStoredLayout(row.layout) : emptyLayout() }, { headers: { "Cache-Control": "no-store" } });
@@ -30,6 +36,18 @@ export async function PUT(request: Request) {
     await getDb().insert(readingCanvases).values({ ownerId: user.id, tag, layout: JSON.stringify(layout), createdAt: now, updatedAt: now })
       .onConflictDoUpdate({ target: [readingCanvases.ownerId, readingCanvases.tag], set: { layout: JSON.stringify(layout), updatedAt: now } });
     return Response.json({ layout });
+  } catch (error) { return apiError(error); }
+}
+
+export async function POST(request: Request) {
+  try {
+    const user = await requireApiUser(request, { mutation: true });
+    const payload = await readJson<{ name?: unknown }>(request);
+    const tag = boundedText(payload.name, "画布名称", 80, true);
+    const now = new Date();
+    await getDb().insert(readingCanvases).values({ ownerId: user.id, tag, layout: JSON.stringify(emptyLayout()), createdAt: now, updatedAt: now })
+      .onConflictDoNothing({ target: [readingCanvases.ownerId, readingCanvases.tag] });
+    return Response.json({ name: tag }, { status: 201 });
   } catch (error) { return apiError(error); }
 }
 

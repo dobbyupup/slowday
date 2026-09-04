@@ -451,6 +451,13 @@ test("tag pills open a durable draggable inspiration canvas", async () => {
     read("../drizzle/0012_fantastic_rockslide.sql"),
   ]);
   assert.match(panels, /InspirationCanvas/);
+  assert.match(panels, /选择已有画布/);
+  assert.match(panels, /新建画布/);
+  assert.match(panels, /从知识库添加资料/);
+  assert.doesNotMatch(panels, /setCanvasTag\(tag\)/);
+  assert.doesNotMatch(panels, /readingTags\(item.tags\)\.includes\(tag\)/);
+  assert.match(route, /onConflictDoNothing/);
+  assert.match(route, /params.has\("tag"\)/);
   assert.match(panels, /灵感画布/);
   assert.match(panels, /beginMove/);
   assert.match(panels, /connectNode/);

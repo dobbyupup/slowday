@@ -976,6 +976,15 @@ export default function Home() {
     return result.layout;
   }
 
+  async function listReadingCanvases() {
+    const result = await api<{ canvases: { name: string }[] }>("/api/reading/canvas");
+    return result.canvases;
+  }
+
+  async function createReadingCanvas(name: string) {
+    await api("/api/reading/canvas", { method: "POST", body: JSON.stringify({ name }) });
+  }
+
   async function saveReadingCanvas(tag: string, layout: ReadingCanvasLayout) {
     await api<{ layout: ReadingCanvasLayout }>("/api/reading/canvas", { method: "PUT", body: JSON.stringify({ tag, ...layout }) });
   }
@@ -1116,7 +1125,7 @@ export default function Home() {
         ) : view === "followup" ? (
           <FollowUpPage milestones={brandMilestones} readings={readingItems} onUpdate={updateMilestone} onDelete={deleteMilestone} onEditReading={editReading} />
         ) : view === "reading" ? (
-          <ReadingTimeline items={readingItems} milestones={brandMilestones} summary={readingSummary} summaryLoading={readingSummaryLoading} onSummarize={() => void summarizeReading()} onAdd={newReading} onEdit={editReading} onDelete={item => void deleteReading(item)} onReanalyze={reanalyzeReading} onConvert={convertReadingToMilestone} onLoadCanvas={loadReadingCanvas} onSaveCanvas={saveReadingCanvas} onConfirm={confirmReading} onImportMedia={importReadingMedia} />
+          <ReadingTimeline items={readingItems} milestones={brandMilestones} summary={readingSummary} summaryLoading={readingSummaryLoading} onSummarize={() => void summarizeReading()} onAdd={newReading} onEdit={editReading} onDelete={item => void deleteReading(item)} onReanalyze={reanalyzeReading} onConvert={convertReadingToMilestone} onLoadCanvas={loadReadingCanvas} onSaveCanvas={saveReadingCanvas} onListCanvases={listReadingCanvases} onCreateCanvas={createReadingCanvas} onConfirm={confirmReading} onImportMedia={importReadingMedia} />
         ) : (
           <section className="review-panel">
             <button className="back-link" onClick={() => setView("overview")}>← 返回复盘总览</button>
