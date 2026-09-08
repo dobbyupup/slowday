@@ -130,6 +130,11 @@ test("review has five moods and four persisted quadrants", async () => {
   assert.match(analysisRoute, /review\.start/);
 });
 
+test("switching dates inside daily review switches the review content too", async () => {
+  const page = await read("../app/page.tsx");
+  assert.match(page, /if \(view === "review"\) \{\s*const saved = reviews\[key\] \|\| emptyReview;\s*setReview\(saved\);\s*setAnalysis\(saved\.analysis \|\| ""\);/s);
+});
+
 test("ships simplified period reviews, persistent goals, AI comparisons, and versioned API", async () => {
   const [page, overviewApi, goalsApi, comparisonApi, schema, migration, progressMigration, tasksApi, reviewsApi, readme, license] = await Promise.all([
     read("../app/page.tsx"),

@@ -349,6 +349,11 @@ export default function Home() {
   function selectDate(key: string) {
     const date = fromDateKey(key);
     setSelectedKey(key);
+    if (view === "review") {
+      const saved = reviews[key] || emptyReview;
+      setReview(saved);
+      setAnalysis(saved.analysis || "");
+    }
     if (date.getFullYear() !== visibleMonth.getFullYear() || date.getMonth() !== visibleMonth.getMonth()) {
       setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1));
     }
