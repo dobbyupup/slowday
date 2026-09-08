@@ -6,8 +6,9 @@ export function getAttachmentBucket() {
 }
 
 export function attachmentKeyFromUrl(value: string) {
-  const prefix = "/api/reading/media/";
-  if (!value.startsWith(prefix)) return null;
+  const prefixes = ["/api/reading/media/", "/rl/api/reading/media/"];
+  const prefix = prefixes.find(candidate => value.startsWith(candidate));
+  if (!prefix) return null;
   const key = value.slice(prefix.length);
   return /^[a-f0-9-]{36}$/i.test(key) ? key : null;
 }

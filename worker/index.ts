@@ -54,7 +54,7 @@ function secureResponse(response: Response, url: URL) {
   headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   if (url.protocol === "https:") headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-  if (url.pathname.startsWith("/api/")) headers.set("Cache-Control", "no-store");
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/rl/api/")) headers.set("Cache-Control", "no-store");
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 

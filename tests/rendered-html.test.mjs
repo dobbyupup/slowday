@@ -70,7 +70,7 @@ test("brand archive is a separate versioned page that evolves from owner-scoped 
     read("../app/api/brand-profile/evolve/route.ts"),
     read("../db/schema.ts"),
     read("../app/globals.css"),
-    read("../drizzle/0014_chilly_mephistopheles.sql"),
+    read("../drizzle/0014_odd_donald_blake.sql"),
   ]);
 
   assert.match(page, /view === "archive"/);
@@ -133,6 +133,30 @@ test("review has five moods and four persisted quadrants", async () => {
 test("switching dates inside daily review switches the review content too", async () => {
   const page = await read("../app/page.tsx");
   assert.match(page, /if \(view === "review"\) \{\s*const saved = reviews\[key\] \|\| emptyReview;\s*setReview\(saved\);\s*setAnalysis\(saved\.analysis \|\| ""\);/s);
+});
+
+test("single-account deployment is password gated and mounted under /rl", async () => {
+  const [page, login, register, shared, nextConfig, sitePath, worker] = await Promise.all([
+    read("../app/page.tsx"),
+    read("../app/api/auth/login/route.ts"),
+    read("../app/api/auth/register/route.ts"),
+    read("../app/api/_shared.ts"),
+    read("../next.config.ts"),
+    read("../app/site-path.ts"),
+    read("../worker/index.ts"),
+  ]);
+  assert.match(nextConfig, /basePath: "\/rl"/);
+  assert.match(sitePath, /SITE_BASE_PATH = "\/rl"/);
+  assert.match(page, /网站密码/);
+  assert.match(page, /JSON\.stringify\(\{ password: authValue \}\)/);
+  assert.doesNotMatch(page, /创建我的日历|使用 ChatGPT 账号登录|恢复密钥/);
+  assert.match(login, /SLOWDAY_SITE_PASSWORD/);
+  assert.match(login, /SLOWDAY_OWNER_ID/);
+  assert.match(login, /sameSecret/);
+  assert.match(register, /此网站仅开放一个账户/);
+  assert.match(shared, /getAllowedChatGPTUser/);
+  assert.match(shared, /sitePath\(item\.imageUrl\)/);
+  assert.match(worker, /url\.pathname\.startsWith\("\/rl\/api\/"\)/);
 });
 
 test("ships simplified period reviews, persistent goals, AI comparisons, and versioned API", async () => {

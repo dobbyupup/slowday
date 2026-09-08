@@ -1,7 +1,9 @@
+import { env } from "cloudflare:workers";
 import { and, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { getDb } from "../../db";
 import { apiKeys, apiRateLimits, reviews, sessions, tasks, users } from "../../db/schema";
 import { getChatGPTUser, type ChatGPTUser } from "../chatgpt-auth";
+import { sitePath } from "../site-path";
 import { paginationValues } from "./validation";
 
 export { validDate, validMonth } from "./validation";
@@ -36,7 +38,7 @@ export async function requireApiUser(request: Request, options: { mutation?: boo
     return { id: key.ownerId, email: key.ownerEmail, displayName: key.name, fullName: null, authType: "api-key" };
   }
 
-  const user = await getSessionUser(request) ?? await getChatGPTUser(request);
+  const user = await getSessionUser(request) ?? await getAllowedChatGPTUser(request);
   if (!user) throw new ApiError(401, "请先登录后再使用日历。");
   if (options.mutation) requireSameOrigin(request);
   await enforceRateLimit(`user:${user.id}`, options.mutation ? 40 : 120);
@@ -52,8 +54,14 @@ export async function requireSessionUser(request: Request, options: { mutation?:
 export async function optionalSessionUser(request: Request): Promise<ApiUser | null> {
   const local = await getSessionUser(request);
   if (local) return local;
-  const chatgpt = await getChatGPTUser(request);
+  const chatgpt = await getAllowedChatGPTUser(request);
   return chatgpt ? { ...chatgpt, authType: "session" } : null;
+}
+
+async function getAllowedChatGPTUser(request: Request) {
+  const user = await getChatGPTUser(request);
+  if (!user) return null;
+  return env.SLOWDAY_OWNER_ID && user.id !== env.SLOWDAY_OWNER_ID ? null : user;
 }
 
 async function getSessionUser(request: Request): Promise<ApiUser | null> {
@@ -194,7 +202,8 @@ export function publicReview<T extends { id: number; date: string; mood: string;
 }
 
 export function publicReading<T extends { id: number; date: string; title: string; source: string; url: string; imageUrl: string; note: string; tags: string; resourceType: string; primaryCategory: string; workflowStatus: string; intendedUse: string; contentHash: string; duplicateOf: number | null; topic: string; createdAt: Date; updatedAt: Date }>(item: T) {
-  return { id: item.id, date: item.date, title: item.title, source: item.source, url: item.url, imageUrl: item.imageUrl, note: item.note, tags: item.tags, resourceType: item.resourceType, primaryCategory: item.primaryCategory, workflowStatus: item.workflowStatus, intendedUse: item.intendedUse, duplicateOf: item.duplicateOf, topic: item.topic, createdAt: item.createdAt, updatedAt: item.updatedAt };
+  const imageUrl = sitePath(item.imageUrl);
+  return { id: item.id, date: item.date, title: item.title, source: item.source, url: item.url, imageUrl, note: item.note, tags: item.tags, resourceType: item.resourceType, primaryCategory: item.primaryCategory, workflowStatus: item.workflowStatus, intendedUse: item.intendedUse, duplicateOf: item.duplicateOf, topic: item.topic, createdAt: item.createdAt, updatedAt: item.updatedAt };
 }
 
 export function publicDesignIdea<T extends { id: number; readingItemId: number | null; title: string; note: string; status: string; createdAt: Date; updatedAt: Date }>(item: T) {

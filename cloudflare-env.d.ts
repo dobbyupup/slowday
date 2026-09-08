@@ -8,5 +8,8 @@ declare namespace Cloudflare {
     AI_PROVIDER?: string;
     OPENAI_API_KEY?: string;
     OPENAI_MODEL?: string;
+    SLOWDAY_OWNER_ID?: string;
+    SLOWDAY_OWNER_NAME?: string;
+    SLOWDAY_SITE_PASSWORD?: string;
   }
 }

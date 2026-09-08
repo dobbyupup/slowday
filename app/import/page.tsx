@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { sitePath } from "../site-path";
 
 type JournalEntry = { date: string; text: string };
 
@@ -19,7 +20,7 @@ export default function ImportJournalsPage() {
       let imported = 0;
       let skipped = 0;
       for (let index = 0; index < entries.length; index += 25) {
-        const response = await fetch("/api/import/journals", {
+        const response = await fetch(sitePath("/api/import/journals"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ entries: entries.slice(index, index + 25) }),
