@@ -307,9 +307,10 @@ body.canvas-open{overflow:hidden}.inspiration-canvas{position:fixed;z-index:40;i
 .archive-version-materials section>b{font-size:11px;color:#9c4e2d}
 .archive-version-materials section>p{display:-webkit-box;margin:5px 0 0;overflow:hidden;color:#645246;font-size:11px;font-weight:400;line-height:1.55;white-space:pre-wrap;-webkit-line-clamp:3;-webkit-box-orient:vertical}
 .todo-check-only{flex:0 0 24px;width:24px;height:24px;display:grid;place-items:center;padding:2px;border:0;background:transparent;cursor:pointer}
-.side-todo{cursor:text}.todo-title-edit{min-width:0;flex:1;padding:3px 2px;border:0;background:transparent;color:inherit;text-align:left;line-height:1.35;cursor:text}
+.todo-title-edit{min-width:0;flex:1;padding:3px 2px;border:0;background:transparent;color:inherit;text-align:left;line-height:1.35;cursor:text}
 .side-todo.done .todo-title-edit{opacity:.52;text-decoration:line-through}
 .todo-title-edit:hover{color:#aa5733}
+.task-summary-row{display:flex;align-items:flex-start;gap:8px;border-top:1px solid #ded2c1;padding:10px 0}.task-summary .task-summary-check{display:block;flex:0 0 17px;width:17px;height:17px;border:0;padding:0;background:transparent}.task-summary .task-summary-check i{width:17px;height:17px;border:1px solid #9c8874;display:grid;place-items:center;font-size:10px;font-style:normal}.task-summary .task-summary-title{display:block;min-width:0;flex:1;width:auto;border:0;padding:0;background:transparent;text-align:left;line-height:1.45;cursor:text}.task-summary-row.done .task-summary-title{text-decoration:line-through;opacity:.55}.task-summary-editor{min-width:0;flex:1}.task-summary-editor input{padding:5px 7px;font-size:11px}
 .canvas-file-input{display:none}
 .canvas-group{position:absolute;left:0;top:0;z-index:0;border:2px dashed rgba(164,92,52,.48);border-radius:22px;background:rgba(255,247,229,.34);box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);pointer-events:auto;cursor:move}
 .canvas-group.drop-target{border-color:#b85f37;background:rgba(244,208,159,.48);box-shadow:inset 0 0 0 3px rgba(184,95,55,.16),0 0 0 6px rgba(255,248,232,.58)}
