@@ -205,6 +205,9 @@ test("ships simplified period reviews, persistent goals, AI comparisons, and ver
   assert.match(page, /period-goal-list/);
   assert.match(page, /addGoalChecklistItem/);
   assert.match(page, /updateGoalChecklist/);
+  assert.match(page, /goal-item-progress/);
+  assert.match(page, /type="range" min="0" max="100" step="5"/);
+  assert.match(page, /<!--progress:/);
   assert.match(page, /标记为完成/);
   assert.match(page, /删除目标/);
   assert.match(page, /AI 总结 · 相比/);

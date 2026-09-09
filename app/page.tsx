@@ -45,7 +45,7 @@ type OverviewData = {
 
 type GoalScope = "week" | "month" | "year";
 type GoalItem = { scope: GoalScope; periodKey: string; label: string; content: string; progress: number; updatedAt?: string };
-type GoalChecklistItem = { text: string; done: boolean };
+type GoalChecklistItem = { text: string; done: boolean; progress: number };
 
 type ApiKeyItem = { id: number; name: string; tokenPrefix: string; createdAt: string; lastUsedAt: string | null; revokedAt: string | null };
 type AIProvider = "deepseek" | "openai" | "custom";
@@ -82,12 +82,24 @@ const addDaysKey = (key: string, days: number) => { const date = fromDateKey(key
 function parseGoalChecklist(content: string): GoalChecklistItem[] {
   return content.split("\n").map(line => line.trim()).filter(Boolean).map(line => {
     const match = line.match(/^-\s*\[([ xX])\]\s*(.+)$/);
-    return match ? { done: match[1].toLowerCase() === "x", text: match[2].trim() } : { done: false, text: line.replace(/^[-•]\s*/, "").trim() };
+    const done = match ? match[1].toLowerCase() === "x" : false;
+    const rawText = match ? match[2].trim() : line.replace(/^[-•]\s*/, "").trim();
+    const progressMatch = rawText.match(/\s*<!--\s*progress:(\d{1,3})\s*-->\s*$/);
+    const progress = progressMatch ? Math.max(0, Math.min(100, Number(progressMatch[1]))) : done ? 100 : 0;
+    const text = progressMatch ? rawText.slice(0, progressMatch.index).trim() : rawText;
+    return { done: progress === 100 || done, text, progress: progress === 100 || !done ? progress : 100 };
   }).filter(item => item.text);
 }
 
 function serializeGoalChecklist(items: GoalChecklistItem[]) {
-  return items.map(item => `- [${item.done ? "x" : " "}] ${item.text.trim()}`).filter(line => !line.endsWith("] ")).join("\n");
+  return items.map(item => {
+    const progress = item.done ? 100 : Math.max(0, Math.min(99, Math.round(item.progress)));
+    return `- [${progress === 100 ? "x" : " "}] ${item.text.trim()} <!--progress:${progress}-->`;
+  }).filter(line => !/\]\s+<!--progress:/.test(line)).join("\n");
+}
+
+function goalChecklistProgress(items: GoalChecklistItem[]) {
+  return items.length ? Math.round(items.reduce((sum, item) => sum + item.progress, 0) / items.length) : 0;
 }
 
 function splitReadingTags(value: string) {
@@ -675,7 +687,7 @@ export default function Home() {
 
   function updateGoalChecklist(scope: GoalScope, items: GoalChecklistItem[], save = false) {
     const content = serializeGoalChecklist(items);
-    const progress = items.length ? Math.round(items.filter(item => item.done).length / items.length * 100) : 0;
+    const progress = goalChecklistProgress(items);
     setGoalDrafts(current => ({ ...current, [scope]: content }));
     setGoalProgress(current => ({ ...current, [scope]: progress }));
     if (save) void saveGoal(scope, content, progress);
@@ -684,7 +696,7 @@ export default function Home() {
   function addGoalChecklistItem(scope: GoalScope) {
     const text = goalNewItem[scope].trim();
     if (!text) return;
-    updateGoalChecklist(scope, [...parseGoalChecklist(goalDrafts[scope]), { text, done: false }], true);
+    updateGoalChecklist(scope, [...parseGoalChecklist(goalDrafts[scope]), { text, done: false, progress: 0 }], true);
     setGoalNewItem(current => ({ ...current, [scope]: "" }));
   }
 
@@ -692,7 +704,7 @@ export default function Home() {
     const currentGoal = overview?.monthlyGoals.find(goal => goal.periodKey === periodKey);
     if (!overview || !currentGoal || nextContent === currentGoal.content) return;
     const items = parseGoalChecklist(nextContent);
-    const progress = items.length ? Math.round(items.filter(item => item.done).length / items.length * 100) : 0;
+    const progress = goalChecklistProgress(items);
     try {
       setYearMonthGoalSaving(periodKey);
       setSyncState("saving");
@@ -716,7 +728,7 @@ export default function Home() {
   function addYearMonthGoalItem(periodKey: string) {
     const text = (yearMonthGoalNewItems[periodKey] ?? "").trim();
     if (!text) return;
-    updateYearMonthGoal(periodKey, [...parseGoalChecklist(yearMonthGoalDrafts[periodKey] ?? ""), { text, done: false }], true);
+    updateYearMonthGoal(periodKey, [...parseGoalChecklist(yearMonthGoalDrafts[periodKey] ?? ""), { text, done: false, progress: 0 }], true);
     setYearMonthGoalNewItems(current => ({ ...current, [periodKey]: "" }));
   }
 
@@ -1136,7 +1148,15 @@ export default function Home() {
               {(() => { const scope = reviewPeriod as GoalScope; const periodName = scope === "week" ? "周" : scope === "month" ? "月" : "年"; const periodDays = scope === "week" ? 7 : scope === "month" ? new Date(selectedYear, selectedMonth, 0).getDate() : (new Date(selectedYear, 1, 29).getMonth() === 1 ? 366 : 365); const previousName = scope === "week" ? "上周" : scope === "month" ? "上月" : "去年"; const checklist = parseGoalChecklist(goalDrafts[scope]); return <div className="simple-review-grid">
                 <section className={`period-goal-card goal-${scope}`}>
                   <header><div><small>{scope.toUpperCase()} GOAL</small><h2>{scope === "year" ? "年度总目标" : `${periodName}目标`}</h2></div><span>{overview.goals[scope].label}</span></header>
-                  <div className="period-goal-list">{checklist.length ? checklist.map((item, index) => <div className={item.done ? "done" : ""} key={index}><button aria-label={item.done ? "标记为未完成" : "标记为完成"} onClick={() => updateGoalChecklist(scope, checklist.map((entry, itemIndex) => itemIndex === index ? { ...entry, done: !entry.done } : entry), true)}>{item.done ? "✓" : ""}</button><input value={item.text} maxLength={180} onChange={event => updateGoalChecklist(scope, checklist.map((entry, itemIndex) => itemIndex === index ? { ...entry, text: event.target.value } : entry))} onBlur={() => void saveGoal(scope)} onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); }} aria-label={`${periodName}目标 ${index + 1}`} /><button className="goal-item-delete" aria-label={`删除目标 ${index + 1}`} onClick={() => updateGoalChecklist(scope, checklist.filter((_, itemIndex) => itemIndex !== index), true)}>×</button></div>) : <p>还没有目标，先添加一件真正重要的事。</p>}</div>
+                  <div className="period-goal-list">{checklist.length ? checklist.map((item, index) => {
+                    const withProgress = (progress: number) => checklist.map((entry, itemIndex) => itemIndex === index ? { ...entry, progress, done: progress === 100 } : entry);
+                    return <div className={item.done ? "done" : ""} key={index}>
+                      <button aria-label={item.done ? "标记为未完成" : "标记为完成"} onClick={() => updateGoalChecklist(scope, withProgress(item.done ? 0 : 100), true)}>{item.done ? "✓" : ""}</button>
+                      <input className="goal-item-title" value={item.text} maxLength={180} onChange={event => updateGoalChecklist(scope, checklist.map((entry, itemIndex) => itemIndex === index ? { ...entry, text: event.target.value } : entry))} onBlur={() => void saveGoal(scope)} onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); }} aria-label={`${periodName}目标 ${index + 1}`} />
+                      <label className="goal-item-progress"><input type="range" min="0" max="100" step="5" value={item.progress} onChange={event => updateGoalChecklist(scope, withProgress(Number(event.target.value)))} onPointerUp={event => updateGoalChecklist(scope, withProgress(Number(event.currentTarget.value)), true)} onKeyUp={event => updateGoalChecklist(scope, withProgress(Number(event.currentTarget.value)), true)} onBlur={event => updateGoalChecklist(scope, withProgress(Number(event.currentTarget.value)), true)} aria-label={`${item.text}的完成进度`} /><output>{item.progress}%</output></label>
+                      <button className="goal-item-delete" aria-label={`删除目标 ${index + 1}`} onClick={() => updateGoalChecklist(scope, checklist.filter((_, itemIndex) => itemIndex !== index), true)}>×</button>
+                    </div>;
+                  }) : <p>还没有目标，先添加一件真正重要的事。</p>}</div>
                   <div className="goal-add-row"><input value={goalNewItem[scope]} maxLength={180} onChange={event => setGoalNewItem(current => ({ ...current, [scope]: event.target.value }))} onKeyDown={event => { if (event.key === "Enter") addGoalChecklistItem(scope); }} placeholder={`添加本${periodName}目标…`} /><button onClick={() => addGoalChecklistItem(scope)}>＋ 添加</button></div>
                   <footer>{goalSaving === scope ? "正在保存…" : `${checklist.filter(item => item.done).length} / ${checklist.length} 项完成`}</footer>
                 </section>
@@ -1149,7 +1169,7 @@ export default function Home() {
                   <header><div><small>12 MONTHLY GOALS</small><h2>这一年的 12 个月目标</h2></div><p>这里与每个月的月复盘同步，完成情况会一起更新。</p></header>
                   <div>{overview.monthlyGoals.map(monthGoal => { const monthChecklist = parseGoalChecklist(yearMonthGoalDrafts[monthGoal.periodKey] ?? monthGoal.content); const completedCount = monthChecklist.filter(item => item.done).length; return <article key={monthGoal.periodKey}>
                     <header><div><b>{monthGoal.label}</b><span>{monthChecklist.length ? `${completedCount}/${monthChecklist.length}` : "未设定"}</span></div><i><span style={{ width: `${monthChecklist.length ? Math.round(completedCount / monthChecklist.length * 100) : 0}%` }} /></i></header>
-                    <div className="year-month-goal-list">{monthChecklist.length ? monthChecklist.map((item, itemIndex) => <div className={item.done ? "done" : ""} key={itemIndex}><button aria-label={`${monthGoal.label}${item.done ? "标记为未完成" : "标记为完成"}`} onClick={() => updateYearMonthGoal(monthGoal.periodKey, monthChecklist.map((entry, index) => index === itemIndex ? { ...entry, done: !entry.done } : entry), true)}>{item.done ? "✓" : ""}</button><input value={item.text} maxLength={180} onChange={event => updateYearMonthGoal(monthGoal.periodKey, monthChecklist.map((entry, index) => index === itemIndex ? { ...entry, text: event.target.value } : entry))} onBlur={() => void saveYearMonthGoal(monthGoal.periodKey)} onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); }} aria-label={`${monthGoal.label}目标 ${itemIndex + 1}`} /><button className="goal-item-delete" aria-label={`删除${monthGoal.label}目标 ${itemIndex + 1}`} onClick={() => updateYearMonthGoal(monthGoal.periodKey, monthChecklist.filter((_, index) => index !== itemIndex), true)}>×</button></div>) : <p>这个月还没有目标</p>}</div>
+                    <div className="year-month-goal-list">{monthChecklist.length ? monthChecklist.map((item, itemIndex) => <div className={item.done ? "done" : ""} key={itemIndex}><button aria-label={`${monthGoal.label}${item.done ? "标记为未完成" : "标记为完成"}`} onClick={() => updateYearMonthGoal(monthGoal.periodKey, monthChecklist.map((entry, index) => index === itemIndex ? { ...entry, done: !entry.done, progress: entry.done ? 0 : 100 } : entry), true)}>{item.done ? "✓" : ""}</button><input value={item.text} maxLength={180} onChange={event => updateYearMonthGoal(monthGoal.periodKey, monthChecklist.map((entry, index) => index === itemIndex ? { ...entry, text: event.target.value } : entry))} onBlur={() => void saveYearMonthGoal(monthGoal.periodKey)} onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); }} aria-label={`${monthGoal.label}目标 ${itemIndex + 1}`} /><button className="goal-item-delete" aria-label={`删除${monthGoal.label}目标 ${itemIndex + 1}`} onClick={() => updateYearMonthGoal(monthGoal.periodKey, monthChecklist.filter((_, index) => index !== itemIndex), true)}>×</button></div>) : <p>这个月还没有目标</p>}</div>
                     <div className="year-month-goal-add"><input value={yearMonthGoalNewItems[monthGoal.periodKey] ?? ""} maxLength={180} onChange={event => setYearMonthGoalNewItems(current => ({ ...current, [monthGoal.periodKey]: event.target.value }))} onKeyDown={event => { if (event.key === "Enter") addYearMonthGoalItem(monthGoal.periodKey); }} placeholder={`添加 ${monthGoal.label}目标…`} /><button onClick={() => addYearMonthGoalItem(monthGoal.periodKey)}>＋</button></div>
                     <footer>{yearMonthGoalSaving === monthGoal.periodKey ? "正在保存…" : "与月复盘同步"}</footer>
                   </article>; })}</div>
