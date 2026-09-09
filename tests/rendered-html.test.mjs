@@ -157,6 +157,8 @@ test("single-account deployment is password gated and mounted under /rl", async 
   assert.match(shared, /getAllowedChatGPTUser/);
   assert.match(shared, /sitePath\(item\.imageUrl\)/);
   assert.match(worker, /url\.pathname\.startsWith\("\/rl\/api\/"\)/);
+  assert.match(worker, /url\.pathname\.startsWith\("\/rl\/assets\/"\)/);
+  assert.match(worker, /assetUrl\.pathname = url\.pathname\.slice\("\/rl"\.length\)/);
 });
 
 test("ships simplified period reviews, persistent goals, AI comparisons, and versioned API", async () => {

@@ -29,9 +29,21 @@ const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === "/_vinext/image") {
+    // vinext emits basePath-prefixed asset URLs, while Workers Assets stores
+    // the generated files at /assets. Serve the prefixed public URL from the
+    // actual asset path so /rl can load its CSS and client runtime.
+    if (url.pathname.startsWith("/rl/assets/")) {
+      const assetUrl = new URL(url);
+      assetUrl.pathname = url.pathname.slice("/rl".length);
+      return secureResponse(await env.ASSETS.fetch(new Request(assetUrl, request)), url);
+    }
+
+    if (url.pathname === "/_vinext/image" || url.pathname === "/rl/_vinext/image") {
+      const optimizerRequest = url.pathname.startsWith("/rl/")
+        ? new Request(new URL(url.pathname.slice("/rl".length) + url.search, url.origin), request)
+        : request;
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
-      const response = await handleImageOptimization(request, {
+      const response = await handleImageOptimization(optimizerRequest, {
         fetchAsset: (path) => env.ASSETS.fetch(new Request(new URL(path, request.url))),
         transformImage: async (body, { width, format, quality }) => {
           const result = await env.IMAGES.input(body).transform(width > 0 ? { width } : {}).output({ format, quality });
