@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { parseAuthenticatedIdentity } from "../app/auth-identity.ts";
 import { paginationValues, validDate, validMonth } from "../app/api/validation.ts";
@@ -54,4 +55,11 @@ test("custom model URL only accepts public HTTPS-style endpoints", () => {
   assert.equal(safeCustomBaseUrl("https://127.0.0.1/v1"), null);
   assert.equal(safeCustomBaseUrl("https://192.168.1.2/v1"), null);
   assert.equal(safeCustomBaseUrl("https://metadata.google.internal/computeMetadata/v1"), null);
+});
+
+test("authenticated reads and mutations use separate rate-limit buckets", async () => {
+  const source = await readFile(new URL("../app/api/_shared.ts", import.meta.url), "utf8");
+  assert.match(source, /`user:\$\{user\.id\}:\$\{action\}`/);
+  assert.match(source, /`key:\$\{key\.id\}:\$\{action\}`/);
+  assert.match(source, /options\.mutation \? 40 : 120/);
 });

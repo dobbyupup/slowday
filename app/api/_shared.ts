@@ -33,7 +33,8 @@ export async function requireApiUser(request: Request, options: { mutation?: boo
     const [key] = await db.select().from(apiKeys)
       .where(and(eq(apiKeys.tokenHash, tokenHash), isNull(apiKeys.revokedAt))).limit(1);
     if (!key) throw new ApiError(401, "API Key 无效或已撤销");
-    await enforceRateLimit(`key:${key.id}`, 60);
+    const action = options.mutation ? "mutation" : "read";
+    await enforceRateLimit(`key:${key.id}:${action}`, 60);
     await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, key.id));
     return { id: key.ownerId, email: key.ownerEmail, displayName: key.name, fullName: null, authType: "api-key" };
   }
@@ -41,7 +42,8 @@ export async function requireApiUser(request: Request, options: { mutation?: boo
   const user = await getSessionUser(request) ?? await getAllowedChatGPTUser(request);
   if (!user) throw new ApiError(401, "请先登录后再使用日历。");
   if (options.mutation) requireSameOrigin(request);
-  await enforceRateLimit(`user:${user.id}`, options.mutation ? 40 : 120);
+  const action = options.mutation ? "mutation" : "read";
+  await enforceRateLimit(`user:${user.id}:${action}`, options.mutation ? 40 : 120);
   await claimLegacyRecords(user.id, user.email);
   return { ...user, authType: "session" };
 }
