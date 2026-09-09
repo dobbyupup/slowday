@@ -30,7 +30,9 @@ test("calendar exposes a selected-day todo list", async () => {
   assert.match(page, /inline-task-editor/);
   assert.match(page, /inline-task-date-input/);
   assert.match(page, /side-todo-editor/);
-  assert.match(page, /className="todo-title-edit" onClick=\{\(\) => beginTaskEdit\(task\)\}/);
+  assert.match(page, /className=\{`side-todo[\s\S]*onClick=\{\(\) => \{ if \(editingTaskId !== task\.id\) beginTaskEdit\(task\); \}\}/);
+  assert.match(page, /className="todo-title-edit" onClick=\{event => \{ event\.stopPropagation\(\); beginTaskEdit\(task\); \}\}/);
+  assert.doesNotMatch(page, /aria-label="编辑待办"/);
   assert.match(page, /className="todo-check-only"/);
   assert.match(page, /type="date" value=\{editingTaskDate\}/);
   assert.match(page, /void toggleTask\(task\.id\)/);
