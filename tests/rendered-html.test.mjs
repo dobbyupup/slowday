@@ -16,6 +16,11 @@ test("calendar exposes a selected-day todo list", async () => {
   assert.doesNotMatch(page, /cell\.day === 1 \? `\$\{cell\.date\.getMonth\(\) \+ 1\}月1日`/);
   assert.match(page, /task\.done \? "done" : ""/);
   assert.match(page, /onDoubleClick=\{event => handleCalendarTaskDoubleClick\(event, task\)\}/);
+  assert.match(page, /draggable=\{!task\.done\}/);
+  assert.match(page, /handleTaskDragStart/);
+  assert.match(page, /date > task\.date/);
+  assert.match(page, /onDrop=\{event => void dropTaskOnDate\(event, key\)\}/);
+  assert.match(page, /application\/x-slowday-task/);
   assert.match(page, /单击修改，双击完成/);
   assert.doesNotMatch(page, /window\.prompt/);
   assert.doesNotMatch(page, /window\.confirm/);
@@ -38,6 +43,8 @@ test("calendar exposes a selected-day todo list", async () => {
   assert.doesNotMatch(page, /给未来挖个小坑/);
   assert.match(css, /\.task-chip\{flex:0 0 28px;min-height:28px/);
   assert.match(css, /\.day-tasks\{flex:1 1 0;max-height:none/);
+  assert.match(css, /\.task-chip\[draggable="true"\]\{cursor:grab\}/);
+  assert.match(css, /\.calendar-grid article\.task-drop-target/);
   assert.match(taskRoute, /validDate\(payload\.date\)/);
   assert.match(taskRoute, /values\.date = payload\.date/);
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FocusEvent as ReactFocusEvent, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type FocusEvent as ReactFocusEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { FollowUpPage, HomeDashboard, ReadingTimeline, formatReadingAnalysis, type BrandMilestone, type BrandPhase, type BrandProfile, type BrandProfileVersion, type BrandProgress, type ReadingCanvasLayout, type ReadingItem } from "./collection-panels";
 import { CalendarIcon } from "./calendar-icon";
 import { BrandArchivePage, type BrandEvolutionProposal, type BrandKnowledgeStats } from "./brand-archive";
@@ -227,6 +227,8 @@ export default function Home() {
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState("");
   const [editingTaskDate, setEditingTaskDate] = useState("");
+  const [draggingTaskId, setDraggingTaskId] = useState<number | null>(null);
+  const [taskDropTarget, setTaskDropTarget] = useState("");
   const calendarTaskClickTimers = useRef<Record<number, number>>({});
 
   const visibleMonthKey = toMonthKey(visibleMonth);
@@ -522,7 +524,7 @@ export default function Home() {
     setEditingTaskDate(task.date);
   }
 
-  async function updateTask(task: Task, nextTitle: string, nextDate: string) {
+  async function updateTask(task: Task, nextTitle: string, nextDate: string, successMessage = "待办已经改好。") {
     const title = nextTitle.trim();
     if (!title || !nextDate || (title === task.title && nextDate === task.date)) return;
     try {
@@ -535,7 +537,7 @@ export default function Home() {
         const withoutTask = prev.filter(item => item.id !== task.id);
         return data.task.date >= todayKey && data.task.date <= addDaysKey(todayKey, 7) ? [...withoutTask, data.task].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id) : withoutTask;
       });
-      showCheer("待办已经改好。");
+      showCheer(successMessage);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "修改失败"); }
   }
 
@@ -567,6 +569,35 @@ export default function Home() {
     if (pending) window.clearTimeout(pending);
     delete calendarTaskClickTimers.current[task.id];
     void toggleTask(task.id);
+  }
+
+  function handleTaskDragStart(event: ReactDragEvent<HTMLButtonElement>, task: Task) {
+    if (task.done) { event.preventDefault(); return; }
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("application/x-slowday-task", String(task.id));
+    event.dataTransfer.setData("text/plain", String(task.id));
+    setDraggingTaskId(task.id);
+  }
+
+  function handleTaskDragEnd() {
+    setDraggingTaskId(null);
+    setTaskDropTarget("");
+  }
+
+  function canDropTaskOn(date: string) {
+    const task = tasks.find(item => item.id === draggingTaskId);
+    return Boolean(task && !task.done && date > task.date);
+  }
+
+  async function dropTaskOnDate(event: ReactDragEvent<HTMLElement>, date: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    const transferredId = Number(event.dataTransfer.getData("application/x-slowday-task") || event.dataTransfer.getData("text/plain"));
+    const task = tasks.find(item => item.id === transferredId || item.id === draggingTaskId);
+    setDraggingTaskId(null);
+    setTaskDropTarget("");
+    if (!task || task.done || date <= task.date) return;
+    await updateTask(task, task.title, date, `“${task.title}”已移到 ${Number(date.slice(5, 7))} 月 ${Number(date.slice(8))} 日。`);
   }
 
   function deleteTask(task: Task) {
@@ -1084,10 +1115,10 @@ export default function Home() {
                 const dayTasks = monthTasks.filter(t => t.date === key).sort((a, b) => Number(a.done) - Number(b.done) || a.id - b.id);
                 const hasReview = Boolean(reviews[key]);
                 return (
-                  <article key={`${cell.key}-${index}`} title="双击快速添加待办" className={`${!cell.current ? "outside" : ""} ${cell.key === todayKey ? "today-cell" : ""} ${cell.key === selectedKey ? "picked" : ""}`} onClick={() => selectDate(cell.key)} onDoubleClick={() => { selectDate(cell.key); setComposer(true); }}>
+                  <article key={`${cell.key}-${index}`} title={canDropTaskOn(key) ? "松开鼠标，把未完成任务移到这一天" : "双击快速添加待办"} className={`${!cell.current ? "outside" : ""} ${cell.key === todayKey ? "today-cell" : ""} ${cell.key === selectedKey ? "picked" : ""} ${taskDropTarget === key ? "task-drop-target" : ""}`} onClick={() => selectDate(cell.key)} onDoubleClick={() => { selectDate(cell.key); setComposer(true); }} onDragOver={event => { if (!canDropTaskOn(key)) return; event.preventDefault(); event.dataTransfer.dropEffect = "move"; if (taskDropTarget !== key) setTaskDropTarget(key); }} onDragLeave={event => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setTaskDropTarget(current => current === key ? "" : current); }} onDrop={event => void dropTaskOnDate(event, key)}>
                     <div className="day-number"><span>{cell.day}</span>{hasReview && <button className="review-stamp" onClick={e => { e.stopPropagation(); openReview(cell.key); }}>已复盘</button>}</div>
                     <div className="day-tasks">
-                      {dayTasks.map(task => editingTaskId === task.id ? <div key={task.id} className="task-chip-editor inline-task-editor" onClick={event => event.stopPropagation()} onDoubleClick={event => event.stopPropagation()} onBlur={event => handleTaskEditorBlur(event, task)}><input className="task-title-input inline-task-title" autoFocus value={editingTaskTitle} onChange={event => setEditingTaskTitle(event.target.value)} onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") setEditingTaskId(null); }} aria-label="修改待办内容" /><label className="inline-task-date" title="修改日期"><CalendarIcon /><input className="inline-task-date-input" type="date" value={editingTaskDate} onChange={event => setEditingTaskDate(event.target.value)} aria-label="修改待办日期" /></label></div> : <button key={task.id} className={`task-chip ${task.category} ${task.done ? "done" : ""}`} title="单击修改，双击完成" onClick={event => handleCalendarTaskClick(event, task)} onDoubleClick={event => handleCalendarTaskDoubleClick(event, task)}><i />{task.title}</button>)}
+                      {dayTasks.map(task => editingTaskId === task.id ? <div key={task.id} className="task-chip-editor inline-task-editor" onClick={event => event.stopPropagation()} onDoubleClick={event => event.stopPropagation()} onBlur={event => handleTaskEditorBlur(event, task)}><input className="task-title-input inline-task-title" autoFocus value={editingTaskTitle} onChange={event => setEditingTaskTitle(event.target.value)} onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") setEditingTaskId(null); }} aria-label="修改待办内容" /><label className="inline-task-date" title="修改日期"><CalendarIcon /><input className="inline-task-date-input" type="date" value={editingTaskDate} onChange={event => setEditingTaskDate(event.target.value)} aria-label="修改待办日期" /></label></div> : <button key={task.id} draggable={!task.done} className={`task-chip ${task.category} ${task.done ? "done" : ""} ${draggingTaskId === task.id ? "dragging" : ""}`} title={task.done ? "双击恢复任务" : "拖到后面的日期，单击修改，双击完成"} onDragStart={event => handleTaskDragStart(event, task)} onDragEnd={handleTaskDragEnd} onClick={event => handleCalendarTaskClick(event, task)} onDoubleClick={event => handleCalendarTaskDoubleClick(event, task)}><i />{task.title}</button>)}
                     </div>
                     <button className="cell-add" aria-label={`${cell.day}日添加待办`} onClick={e => { e.stopPropagation(); selectDate(cell.key); setComposer(true); }}>＋</button>
                   </article>
